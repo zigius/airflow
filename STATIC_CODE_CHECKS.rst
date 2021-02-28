@@ -44,9 +44,13 @@ This table lists pre-commit hooks used by Airflow and indicates which hooks
 require Breeze Docker images to be installed locally:
 
 =================================== ================================================================ ============
-**Hooks**                             **Description**                                                 **Breeze**
+**Hooks**                            **Description**                                                 **Breeze**
 =================================== ================================================================ ============
 ``airflow-config-yaml``               Checks that airflow config yaml is 1-1 with the code
+----------------------------------- ---------------------------------------------------------------- ------------
+``airflow-providers-available``       Checks that providers are properly declared by extras
+----------------------------------- ---------------------------------------------------------------- ------------
+``airflow-provider-yaml-files-ok``    Checks that providers yaml files are valid
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``base-operator``                     Checks that BaseOperator is imported properly
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -68,8 +72,6 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-hooks-apply``                 Checks which hooks are applicable to the repository.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``check-hooks-apply``                 Checks which hooks are applicable to the repository.
------------------------------------ ---------------------------------------------------------------- ------------
 ``check-integrations``                Checks if integration list is synchronized in code.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``check-merge-conflicts``             Checks that merge conflicts are not being committed.
@@ -88,17 +90,25 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``dont-use-safe-filter``              Don't use safe in templates.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``no-providers-in-core-examples``     Don't use providers imports in core example DAGs
+----------------------------------- ---------------------------------------------------------------- ------------
 ``no-relative-imports``               Use absolute imports, not relative
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``end-of-file-fixer``                 Makes sure that there is an empty line at the end.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``fix-encoding-pragma``               Removes encoding header from python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``pyupgrade``                         Runs PyUpgrade
+----------------------------------- ---------------------------------------------------------------- ------------
 ``flake8``                            Runs flake8.                                                         *
+----------------------------------- ---------------------------------------------------------------- ------------
+``flynt``                             Runs flynt.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``forbid-tabs``                       Fails if tabs are used in the project.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``helm-lint``                         Verifies if helm lint passes for the chart
+----------------------------------- ---------------------------------------------------------------- ------------
+``identity``                          Prints inputs to the static check hooks for troubleshooting
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``incorrect-use-of-LoggingMixin``     Checks if LoggingMixin is properly imported.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -106,15 +116,19 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``isort``                             Sorts imports in python files.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``json-schema``                       Checks that the files complies with the JSON Schema spec
+----------------------------------- ---------------------------------------------------------------- ------------
 ``language-matters``                  Check for language that we do not accept as community
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-dockerfile``                   Lints a dockerfile.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``lint-openapi``                      Lints openapi specification.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).
+``markdownlint``                      Lints Markdown files.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``mermaid``                           Generates diagrams from mermaid files.
+----------------------------------- ---------------------------------------------------------------- ------------
+``mixed-line-ending``                 Detects if mixed line ending is used (\r vs. \r\n).
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``mypy``                              Runs mypy.                                                           *
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -122,7 +136,13 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pre-commit-descriptions``           Check if all pre-commits are described in docs.
 ----------------------------------- ---------------------------------------------------------------- ------------
+``pre-commit-hook-names``             Check that hook names are not overly long.
+----------------------------------- ---------------------------------------------------------------- ------------
 ``provide-create-sessions``           Make sure provide-session and create-session imports are OK.
+----------------------------------- ---------------------------------------------------------------- ------------
+``providers-init-file``               Check that provider's __init__.py file is removed
+----------------------------------- ---------------------------------------------------------------- ------------
+``provider-yamls``                    Checks that provider.yaml files have the correct content
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``pydevd``                            Check for accidentally committed pydevd statements.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -138,7 +158,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``setup-order``                       Checks for an order of dependencies in setup.py
 ----------------------------------- ---------------------------------------------------------------- ------------
-``setup-installation``                Checks if all the libraries in setup.py are listed in docs
+``setup-extra-packages``              Checks if all the libraries in setup.py are listed in docs
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``shellcheck``                        Checks shell files with shellcheck.
 ----------------------------------- ---------------------------------------------------------------- ------------
@@ -154,7 +174,7 @@ require Breeze Docker images to be installed locally:
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-local-yml-file``             Updates mounts in local.yml file.
 ----------------------------------- ---------------------------------------------------------------- ------------
-``update-setup-cfg-file``            Update setup.cfg file with all licenses.
+``update-setup-cfg-file``             Update setup.cfg file with all licenses.
 ----------------------------------- ---------------------------------------------------------------- ------------
 ``update-extras``                     Updates extras in the documentation.
 ----------------------------------- ---------------------------------------------------------------- ------------

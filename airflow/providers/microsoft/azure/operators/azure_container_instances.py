@@ -19,17 +19,17 @@
 import re
 from collections import namedtuple
 from time import sleep
-from typing import Any, List, Optional, Sequence, Union, Dict
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
+    ContainerPort,
     EnvironmentVariable,
+    IpAddress,
     ResourceRequests,
     ResourceRequirements,
     VolumeMount,
-    IpAddress,
-    ContainerPort,
 )
 from msrestazure.azure_exceptions import CloudError
 
@@ -278,7 +278,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
             self.log.info("Container had exit code: %s", exit_code)
             if exit_code != 0:
-                raise AirflowException("Container had a non-zero exit code, %s" % exit_code)
+                raise AirflowException(f"Container had a non-zero exit code, {exit_code}")
             return exit_code
 
         except CloudError:
@@ -334,7 +334,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                         last_line_logged = self._log_last(logs, last_line_logged)
                     except CloudError:
                         self.log.exception(
-                            "Exception while getting logs from " "container instance, retrying..."
+                            "Exception while getting logs from container instance, retrying..."
                         )
 
                 if state == "Terminated":

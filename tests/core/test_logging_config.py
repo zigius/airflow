@@ -25,6 +25,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import pytest
+
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
@@ -97,7 +99,10 @@ def reset_logging():
     manager = logging.root.manager
     manager.disabled = logging.NOTSET
     airflow_loggers = [
-        logger for logger_name, logger in manager.loggerDict.items() if logger_name.startswith('airflow')
+        # pylint: disable=no-member
+        logger
+        for logger_name, logger in manager.loggerDict.items()
+        if logger_name.startswith('airflow')
     ]
     for logger in airflow_loggers:  # pylint: disable=too-many-nested-blocks
         if isinstance(logger, logging.Logger):
@@ -188,10 +193,11 @@ class TestLoggingSettings(unittest.TestCase):
     # When we try to load an invalid config file, we expect an error
     def test_loading_invalid_local_settings(self):
         from airflow.logging_config import configure_logging, log
+
         with settings_context(SETTINGS_FILE_INVALID):
             with patch.object(log, 'error') as mock_info:
                 # Load config
-                with self.assertRaises(ValueError):
+                with pytest.raises(ValueError):
                     configure_logging()
 
                 mock_info.assert_called_once_with(
@@ -204,60 +210,58 @@ class TestLoggingSettings(unittest.TestCase):
         dir_structure = module_structure.replace('.', '/')
         with settings_context(SETTINGS_FILE_VALID, dir_structure):
             from airflow.logging_config import configure_logging, log
+
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
                 mock_info.assert_called_once_with(
                     'Successfully imported user-defined logging config from %s',
-                    'etc.airflow.config.{}.LOGGING_CONFIG'.format(
-                        SETTINGS_DEFAULT_NAME
-                    )
+                    f'etc.airflow.config.{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG',
                 )
 
     # When we try to load a valid config
     def test_loading_valid_local_settings(self):
         with settings_context(SETTINGS_FILE_VALID):
             from airflow.logging_config import configure_logging, log
+
             with patch.object(log, 'info') as mock_info:
                 configure_logging()
                 mock_info.assert_called_once_with(
                     'Successfully imported user-defined logging config from %s',
-                    '{}.LOGGING_CONFIG'.format(
-                        SETTINGS_DEFAULT_NAME
-                    )
+                    f'{SETTINGS_DEFAULT_NAME}.LOGGING_CONFIG',
                 )
 
     # When we load an empty file, it should go to default
     def test_loading_no_local_settings(self):
         with settings_context(SETTINGS_FILE_EMPTY):
             from airflow.logging_config import configure_logging
-            with self.assertRaises(ImportError):
+
+            with pytest.raises(ImportError):
                 configure_logging()
 
     # When the key is not available in the configuration
     def test_when_the_config_key_does_not_exists(self):
         from airflow import logging_config
+
         with conf_vars({('logging', 'logging_config_class'): None}):
             with patch.object(logging_config.log, 'debug') as mock_debug:
                 logging_config.configure_logging()
-                mock_debug.assert_any_call(
-                    'Could not find key logging_config_class in config'
-                )
+                mock_debug.assert_any_call('Could not find key logging_config_class in config')
 
     # Just default
     def test_loading_local_settings_without_logging_config(self):
         from airflow.logging_config import configure_logging, log
+
         with patch.object(log, 'debug') as mock_info:
             configure_logging()
-            mock_info.assert_called_once_with(
-                'Unable to load custom logging, using default config instead'
-            )
+            mock_info.assert_called_once_with('Unable to load custom logging, using default config instead')
 
     def test_1_9_config(self):
         from airflow.logging_config import configure_logging
+
         with conf_vars({('logging', 'task_log_reader'): 'file.task'}):
-            with self.assertWarnsRegex(DeprecationWarning, r'file.task'):
+            with pytest.warns(DeprecationWarning, match=r'file.task'):
                 configure_logging()
-            self.assertEqual(conf.get('logging', 'task_log_reader'), 'task')
+            assert conf.get('logging', 'task_log_reader') == 'task'
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
@@ -265,13 +269,15 @@ class TestLoggingSettings(unittest.TestCase):
         from airflow.logging_config import configure_logging
         from airflow.utils.log.wasb_task_handler import WasbTaskHandler
 
-        with conf_vars({
-            ('logging', 'remote_logging'): 'True',
-            ('logging', 'remote_log_conn_id'): 'some_wasb',
-            ('logging', 'remote_base_log_folder'): 'wasb://some-folder',
-        }):
+        with conf_vars(
+            {
+                ('logging', 'remote_logging'): 'True',
+                ('logging', 'remote_log_conn_id'): 'some_wasb',
+                ('logging', 'remote_base_log_folder'): 'wasb://some-folder',
+            }
+        ):
             importlib.reload(airflow_local_settings)
             configure_logging()
 
         logger = logging.getLogger('airflow.task')
-        self.assertIsInstance(logger.handlers[0], WasbTaskHandler)
+        assert isinstance(logger.handlers[0], WasbTaskHandler)

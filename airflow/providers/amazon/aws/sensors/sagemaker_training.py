@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
-
 import time
+from typing import Optional
 
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
@@ -60,7 +59,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         job_already_completed = status not in self.non_terminal_states()
         self.state = LogState.TAILING if not job_already_completed else LogState.COMPLETE
         self.last_description = description
-        self.last_describe_job_call = time.time()
+        self.last_describe_job_call = time.monotonic()
         self.log_resource_inited = True
 
     def non_terminal_states(self):

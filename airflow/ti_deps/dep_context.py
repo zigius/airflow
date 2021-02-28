@@ -44,7 +44,7 @@ class DepContext:
         shortest path to add the feature. This is bad since this class should be pure (no
         side effects).
     :type flag_upstream_failed: bool
-    :param ignore_all_deps: Whether or not the context should ignore all ignoreable
+    :param ignore_all_deps: Whether or not the context should ignore all ignorable
         dependencies. Overrides the other ignore_* parameters
     :type ignore_all_deps: bool
     :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
@@ -64,16 +64,17 @@ class DepContext:
     """
 
     def __init__(
-            self,
-            deps=None,
-            flag_upstream_failed: bool = False,
-            ignore_all_deps: bool = False,
-            ignore_depends_on_past: bool = False,
-            ignore_in_retry_period: bool = False,
-            ignore_in_reschedule_period: bool = False,
-            ignore_task_deps: bool = False,
-            ignore_ti_state: bool = False,
-            finished_tasks=None):
+        self,
+        deps=None,
+        flag_upstream_failed: bool = False,
+        ignore_all_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        ignore_in_retry_period: bool = False,
+        ignore_in_reschedule_period: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_ti_state: bool = False,
+        finished_tasks=None,
+    ):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
         self.ignore_all_deps = ignore_all_deps

@@ -22,7 +22,7 @@ import logging
 import os
 import pathlib
 import time
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 from qds_sdk.commands import (
     Command,
@@ -31,18 +31,18 @@ from qds_sdk.commands import (
     DbTapQueryCommand,
     HadoopCommand,
     HiveCommand,
+    JupyterNotebookCommand,
     PigCommand,
     PrestoCommand,
     ShellCommand,
     SparkCommand,
     SqlCommand,
-    JupyterNotebookCommand,
 )
 from qds_sdk.qubole import Qubole
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.utils.state import State
 
 log = logging.getLogger(__name__)
@@ -109,9 +109,26 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 class QuboleHook(BaseHook):
     """Hook for Qubole communication"""
 
+    conn_name_attr = 'qubole_conn_id'
+    default_conn_name = 'qubole_default'
+    conn_type = 'qubole'
+    hook_name = 'Qubole'
+
+    @staticmethod
+    def get_ui_field_behaviour() -> Dict:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ['login', 'schema', 'port', 'extra'],
+            "relabeling": {
+                'host': 'API Endpoint',
+                'password': 'Auth Token',
+            },
+            "placeholders": {'host': 'https://<env>.qubole.com/api'},
+        }
+
     def __init__(self, *args, **kwargs) -> None:  # pylint: disable=unused-argument
         super().__init__()
-        conn = self.get_connection(kwargs['qubole_conn_id'])
+        conn = self.get_connection(kwargs.get('qubole_conn_id', self.default_conn_name))
         Qubole.configure(api_token=conn.password, api_url=conn.host)
         self.task_id = kwargs['task_id']
         self.dag_id = kwargs['dag'].dag_id
@@ -130,9 +147,7 @@ class QuboleHook(BaseHook):
             cmd = Command.find(cmd_id)
             if cmd is not None:
                 if cmd.status == 'done':
-                    log.info(
-                        'Command ID: %s has been succeeded, hence marking this ' 'TI as Success.', cmd_id
-                    )
+                    log.info('Command ID: %s has been succeeded, hence marking this TI as Success.', cmd_id)
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
@@ -164,7 +179,7 @@ class QuboleHook(BaseHook):
 
         if self.cmd.status != 'done':  # type: ignore[attr-defined]
             raise AirflowException(
-                'Command Id: {0} failed with Status: {1}'.format(
+                'Command Id: {} failed with Status: {}'.format(
                     self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
                 )
             )
@@ -247,7 +262,7 @@ class QuboleHook(BaseHook):
         for key, value in self.kwargs.items():  # pylint: disable=too-many-nested-blocks
             if key in COMMAND_ARGS[cmd_type]:
                 if key in HYPHEN_ARGS:
-                    args.append("--{0}={1}".format(key.replace('_', '-'), value))
+                    args.append(f"--{key.replace('_', '-')}={value}")
                 elif key in positional_args_list:
                     inplace_args = value
                 elif key == 'tags':
@@ -256,9 +271,9 @@ class QuboleHook(BaseHook):
                     if value is True:
                         args.append("--notify")
                 else:
-                    args.append("--{0}={1}".format(key, value))
+                    args.append(f"--{key}={value}")
 
-        args.append("--tags={0}".format(','.join(filter(None, tags))))
+        args.append(f"--tags={','.join(filter(None, tags))}")
 
         if inplace_args is not None:
             args += inplace_args.split(' ')

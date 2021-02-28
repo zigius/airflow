@@ -61,13 +61,14 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
             if 'token' not in status:
                 logging.error('exec: missing token field in plugin output')
                 return None
-            self.token = "Bearer %s" % status['token']  # pylint: disable=W0201
+            self.token = f"Bearer {status['token']}"  # pylint: disable=W0201
             ts_str = status.get('expirationTimestamp')
             if ts_str:
                 self.api_key_expire_ts = _parse_timestamp(ts_str)
             return True
         except Exception as e:  # pylint: disable=W0703
             logging.error(str(e))
+            return None
 
     def refresh_api_key(self, client_configuration):
         """Refresh API key if expired"""
@@ -81,7 +82,7 @@ class RefreshKubeConfigLoader(KubeConfigLoader):
 
 class RefreshConfiguration(Configuration):
     """
-    Patched Configuration, this subclass taskes api key refresh callback hook
+    Patched Configuration, this subclass takes api key refresh callback hook
     into account
     """
 
@@ -104,7 +105,8 @@ def _get_kube_config_loader_for_yaml_file(filename, **kwargs) -> Optional[Refres
         return RefreshKubeConfigLoader(
             config_dict=yaml.safe_load(f),
             config_base_path=os.path.abspath(os.path.dirname(filename)),
-            **kwargs)
+            **kwargs,
+        )
 
 
 def load_kube_config(client_configuration, config_file=None, context=None):
@@ -117,6 +119,5 @@ def load_kube_config(client_configuration, config_file=None, context=None):
     if config_file is None:
         config_file = os.path.expanduser(KUBE_CONFIG_DEFAULT_LOCATION)
 
-    loader = _get_kube_config_loader_for_yaml_file(
-        config_file, active_context=context, config_persister=None)
+    loader = _get_kube_config_loader_for_yaml_file(config_file, active_context=context, config_persister=None)
     loader.load_and_set(client_configuration)

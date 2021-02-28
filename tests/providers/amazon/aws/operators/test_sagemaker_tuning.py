@@ -17,8 +17,9 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -29,13 +30,13 @@ role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'
 
 key = 'test/data'
-data_url = 's3://{}/{}'.format(bucket, key)
+data_url = f's3://{bucket}/{key}'
 
 job_name = 'test-job-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 
 create_tuning_params = {
     'HyperParameterTuningJobName': job_name,
@@ -91,33 +92,25 @@ class TestSageMakerTuningOperator(unittest.TestCase):
 
     def test_parse_config_integers(self):
         self.sagemaker.parse_config_integers()
-        self.assertEqual(
-            self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['InstanceCount'],
-            int(self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['InstanceCount']),
+        assert self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['InstanceCount'] == int(
+            self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['InstanceCount']
         )
-        self.assertEqual(
-            self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['VolumeSizeInGB'],
-            int(self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['VolumeSizeInGB']),
+        assert self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['VolumeSizeInGB'] == int(
+            self.sagemaker.config['TrainingJobDefinition']['ResourceConfig']['VolumeSizeInGB']
         )
-        self.assertEqual(
+        assert self.sagemaker.config['HyperParameterTuningJobConfig']['ResourceLimits'][
+            'MaxNumberOfTrainingJobs'
+        ] == int(
             self.sagemaker.config['HyperParameterTuningJobConfig']['ResourceLimits'][
                 'MaxNumberOfTrainingJobs'
-            ],
-            int(
-                self.sagemaker.config['HyperParameterTuningJobConfig']['ResourceLimits'][
-                    'MaxNumberOfTrainingJobs'
-                ]
-            ),
+            ]
         )
-        self.assertEqual(
+        assert self.sagemaker.config['HyperParameterTuningJobConfig']['ResourceLimits'][
+            'MaxParallelTrainingJobs'
+        ] == int(
             self.sagemaker.config['HyperParameterTuningJobConfig']['ResourceLimits'][
                 'MaxParallelTrainingJobs'
-            ],
-            int(
-                self.sagemaker.config['HyperParameterTuningJobConfig']['ResourceLimits'][
-                    'MaxParallelTrainingJobs'
-                ]
-            ),
+            ]
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -133,4 +126,5 @@ class TestSageMakerTuningOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'create_tuning_job')
     def test_execute_with_failure(self, mock_tuning, mock_client):
         mock_tuning.return_value = {'TrainingJobArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)

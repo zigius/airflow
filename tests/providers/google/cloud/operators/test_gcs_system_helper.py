@@ -18,14 +18,14 @@
 # under the License.
 import os
 
+from airflow.providers.google.cloud.example_dags.example_gcs import (
+    BUCKET_1,
+    BUCKET_2,
+    PATH_TO_SAVED_FILE,
+    PATH_TO_TRANSFORM_SCRIPT,
+    PATH_TO_UPLOAD_FILE,
+)
 from tests.test_utils.logging_command_executor import LoggingCommandExecutor
-
-BUCKET_1 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket")
-BUCKET_2 = os.environ.get("GCP_GCS_BUCKET_1", "test-gcs-example-bucket-2")
-
-PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
-PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
-PATH_TO_TRANSFORM_SCRIPT = os.environ.get('GCP_GCS_PATH_TO_TRANSFORM_SCRIPT', 'test.py')
 
 
 class GcsSystemTestHelper(LoggingCommandExecutor):
@@ -57,5 +57,5 @@ with open(source, "r") as src, open(destination, "w+") as dest:
         os.remove(PATH_TO_TRANSFORM_SCRIPT)
 
     def remove_bucket(self):
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET_1)])
-        self.execute_cmd(["gsutil", "rm", "-r", "gs://{bucket}".format(bucket=BUCKET_2)])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_1}"])
+        self.execute_cmd(["gsutil", "rm", "-r", f"gs://{BUCKET_2}"])

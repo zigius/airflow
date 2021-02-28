@@ -24,9 +24,9 @@ import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
 from psycopg2.extensions import connection
-from psycopg2.extras import DictCursor, RealDictCursor, NamedTupleCursor
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.models.connection import Connection
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
@@ -57,6 +57,8 @@ class PostgresHook(DbApiHook):
 
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
+    conn_type = 'postgres'
+    hook_name = 'Postgres'
     supports_autocommit = True
 
     def __init__(self, *args, **kwargs) -> None:
@@ -73,7 +75,7 @@ class PostgresHook(DbApiHook):
             return psycopg2.extras.RealDictCursor
         if _cursor == 'namedtuplecursor':
             return psycopg2.extras.NamedTupleCursor
-        raise ValueError('Invalid cursor passed {}'.format(_cursor))
+        raise ValueError(f'Invalid cursor passed {_cursor}')
 
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""
@@ -130,11 +132,11 @@ class PostgresHook(DbApiHook):
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Loads a tab-delimited file into a database table"""
-        self.copy_expert("COPY {table} FROM STDIN".format(table=table), tmp_file)
+        self.copy_expert(f"COPY {table} FROM STDIN", tmp_file)
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dumps a database table into a tab-delimited file"""
-        self.copy_expert("COPY {table} TO STDOUT".format(table=table), tmp_file)
+        self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     # pylint: disable=signature-differs
     @staticmethod
@@ -217,11 +219,11 @@ class PostgresHook(DbApiHook):
 
         if target_fields:
             target_fields_fragment = ", ".join(target_fields)
-            target_fields_fragment = "({})".format(target_fields_fragment)
+            target_fields_fragment = f"({target_fields_fragment})"
         else:
             target_fields_fragment = ''
 
-        sql = "INSERT INTO {0} {1} VALUES ({2})".format(table, target_fields_fragment, ",".join(placeholders))
+        sql = f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
 
         if replace:
             if target_fields is None:
@@ -235,7 +237,7 @@ class PostgresHook(DbApiHook):
             replace_target = [
                 "{0} = excluded.{0}".format(col) for col in target_fields if col not in replace_index_set
             ]
-            sql += " ON CONFLICT ({0}) DO UPDATE SET {1}".format(
+            sql += " ON CONFLICT ({}) DO UPDATE SET {}".format(
                 ", ".join(replace_index),
                 ", ".join(replace_target),
             )

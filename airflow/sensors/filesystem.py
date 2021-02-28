@@ -21,7 +21,7 @@ import os
 from glob import glob
 
 from airflow.hooks.filesystem import FSHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -44,10 +44,7 @@ class FileSensor(BaseSensorOperator):
     ui_color = '#91818a'
 
     @apply_defaults
-    def __init__(self, *,
-                 filepath,
-                 fs_conn_id='fs_default',
-                 **kwargs):
+    def __init__(self, *, filepath, fs_conn_id='fs_default', **kwargs):
         super().__init__(**kwargs)
         self.filepath = filepath
         self.fs_conn_id = fs_conn_id

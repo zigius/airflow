@@ -17,9 +17,11 @@
 
 import unittest
 
+import pytest
+
 from airflow import DAG
 from airflow.exceptions import AirflowDagCycleException
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.dummy import DummyOperator
 from airflow.utils.dag_cycle_tester import test_cycle as _test_cycle  # to avoid being a test function
 from tests.models import DEFAULT_DATE
 
@@ -27,30 +29,21 @@ from tests.models import DEFAULT_DATE
 class TestCycleTester(unittest.TestCase):
     def test_cycle_empty(self):
         # test empty
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
-        self.assertFalse(_test_cycle(dag))
+        assert not _test_cycle(dag)
 
     def test_cycle_single_task(self):
         # test single task
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         with dag:
             DummyOperator(task_id='A')
 
-        self.assertFalse(_test_cycle(dag))
+        assert not _test_cycle(dag)
 
     def test_semi_complex(self):
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         # A -> B -> C
         #      B -> D
@@ -67,10 +60,7 @@ class TestCycleTester(unittest.TestCase):
 
     def test_cycle_no_cycle(self):
         # test no cycle
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         # A -> B -> C
         #      B -> D
@@ -87,29 +77,23 @@ class TestCycleTester(unittest.TestCase):
             op2.set_downstream(op4)
             op5.set_downstream(op6)
 
-        self.assertFalse(_test_cycle(dag))
+        assert not _test_cycle(dag)
 
     def test_cycle_loop(self):
         # test self loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         # A -> A
         with dag:
             op1 = DummyOperator(task_id='A')
             op1.set_downstream(op1)
 
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)
 
     def test_cycle_downstream_loop(self):
         # test downstream self loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         # A -> B -> C -> D -> E -> E
         with dag:
@@ -124,15 +108,12 @@ class TestCycleTester(unittest.TestCase):
             op4.set_downstream(op5)
             op5.set_downstream(op5)
 
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)
 
     def test_cycle_large_loop(self):
         # large loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         # A -> B -> C -> D -> E -> A
         with dag:
@@ -145,15 +126,12 @@ class TestCycleTester(unittest.TestCase):
                 current = next_task
 
             current.set_downstream(start)
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)
 
     def test_cycle_arbitrary_loop(self):
         # test arbitrary loop
-        dag = DAG(
-            'dag',
-            start_date=DEFAULT_DATE,
-            default_args={'owner': 'owner1'})
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
 
         # E-> A -> B -> F -> A
         #       -> C -> F
@@ -170,5 +148,5 @@ class TestCycleTester(unittest.TestCase):
             op2.set_downstream(op5)
             op5.set_downstream(op1)
 
-        with self.assertRaises(AirflowDagCycleException):
-            self.assertFalse(_test_cycle(dag))
+        with pytest.raises(AirflowDagCycleException):
+            assert not _test_cycle(dag)

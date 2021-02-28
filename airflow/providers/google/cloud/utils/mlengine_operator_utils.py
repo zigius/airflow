@@ -66,15 +66,18 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
     and for Cloud Dataflow, https://cloud.google.com/dataflow/docs/
 
     It returns three chained operators for prediction, summary, and validation,
-    named as <prefix>-prediction, <prefix>-summary, and <prefix>-validation,
+    named as ``<prefix>-prediction``, ``<prefix>-summary``, and ``<prefix>-validation``,
     respectively.
-    (<prefix> should contain only alphanumeric characters or hyphen.)
+    (``<prefix>`` should contain only alphanumeric characters or hyphen.)
 
     The upstream and downstream can be set accordingly like:
-      pred, _, val = create_evaluate_ops(...)
-      pred.set_upstream(upstream_op)
-      ...
-      downstream_op.set_upstream(val)
+
+    .. code-block:: python
+
+        pred, _, val = create_evaluate_ops(...)
+        pred.set_upstream(upstream_op)
+        ...
+        downstream_op.set_upstream(val)
 
     Callers will provide two python callables, metric_fn and validate_fn, in
     order to customize the evaluation behavior as they wish.
@@ -165,7 +168,7 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
     :type dataflow_options: dictionary
 
     :param model_uri: GCS path of the model exported by Tensorflow using
-        tensorflow.estimator.export_savedmodel(). It cannot be used with
+        ``tensorflow.estimator.export_savedmodel()``. It cannot be used with
         model_name or version_name below. See MLEngineBatchPredictionOperator for
         more detail.
     :type model_uri: str
@@ -255,7 +258,7 @@ def create_evaluate_ops(  # pylint: disable=too-many-arguments
         prediction_path = templates_dict["prediction_path"]
         scheme, bucket, obj, _, _ = urlsplit(prediction_path)
         if scheme != "gs" or not bucket or not obj:
-            raise ValueError("Wrong format prediction_path: {}".format(prediction_path))
+            raise ValueError(f"Wrong format prediction_path: {prediction_path}")
         summary = os.path.join(obj.strip("/"), "prediction.summary.json")
         gcs_hook = GCSHook()
         summary = json.loads(gcs_hook.download(bucket, summary))

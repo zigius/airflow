@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, List
+from typing import List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -116,7 +116,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
-            raise AirflowException('Sagemaker transform Job creation failed: %s' % response)
+            raise AirflowException(f'Sagemaker transform Job creation failed: {response}')
         else:
             return {
                 'Model': self.hook.describe_model(transform_config['ModelName']),

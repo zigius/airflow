@@ -59,8 +59,7 @@ class UtcDateTime(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is not None:
             if not isinstance(value, datetime.datetime):
-                raise TypeError('expected datetime.datetime, not ' +
-                                repr(value))
+                raise TypeError('expected datetime.datetime, not ' + repr(value))
             elif value.tzinfo is None:
                 raise ValueError('naive datetime is disallowed')
             # For mysql we should store timestamps as naive values
@@ -70,6 +69,7 @@ class UtcDateTime(TypeDecorator):
             # See https://issues.apache.org/jira/browse/AIRFLOW-7001
             if using_mysql:
                 from airflow.utils.timezone import make_naive
+
                 return make_naive(value, timezone=utc)
             return value.astimezone(utc)
         return None
@@ -99,17 +99,27 @@ class Interval(TypeDecorator):
     attr_keys = {
         datetime.timedelta: ('days', 'seconds', 'microseconds'),
         relativedelta.relativedelta: (
-            'years', 'months', 'days', 'leapdays', 'hours', 'minutes', 'seconds', 'microseconds',
-            'year', 'month', 'day', 'hour', 'minute', 'second', 'microsecond',
+            'years',
+            'months',
+            'days',
+            'leapdays',
+            'hours',
+            'minutes',
+            'seconds',
+            'microseconds',
+            'year',
+            'month',
+            'day',
+            'hour',
+            'minute',
+            'second',
+            'microsecond',
         ),
     }
 
     def process_bind_param(self, value, dialect):
         if isinstance(value, tuple(self.attr_keys)):
-            attrs = {
-                key: getattr(value, key)
-                for key in self.attr_keys[type(value)]
-            }
+            attrs = {key: getattr(value, key) for key in self.attr_keys[type(value)]}
             return json.dumps({'type': type(value).__name__, 'attrs': attrs})
         return json.dumps(value)
 
@@ -178,15 +188,19 @@ def nulls_first(col, session: Session) -> Dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean('scheduler', 'use_row_level_locking', fallback=True)
 
 
-def with_row_locks(query, **kwargs):
+def with_row_locks(query, session: Session, **kwargs):
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 
     :param query: An SQLAlchemy Query object
-    :param **kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
+    :param session: ORM Session
+    :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
-    if USE_ROW_LEVEL_LOCKING:
+    dialect = session.bind.dialect
+
+    # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
+    if USE_ROW_LEVEL_LOCKING and (dialect.name != "mysql" or dialect.supports_for_update_of):
         return query.with_for_update(**kwargs)
     else:
         return query
@@ -207,11 +221,11 @@ class CommitProhibitorGuard:
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
     def __enter__(self):
-        event.listen(self.session.bind, 'commit', self._validate_commit)
+        event.listen(self.session, 'before_commit', self._validate_commit)
         return self
 
     def __exit__(self, *exc_info):
-        event.remove(self.session.bind, 'commit', self._validate_commit)
+        event.remove(self.session, 'before_commit', self._validate_commit)
 
     def commit(self):
         """

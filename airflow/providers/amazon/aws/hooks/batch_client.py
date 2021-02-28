@@ -106,6 +106,7 @@ class AwsBatchProtocol(Protocol):
         arrayProperties: Dict,
         parameters: Dict,
         containerOverrides: Dict,
+        tags: Dict,
     ) -> Dict:
         """
         Submit a batch job
@@ -127,6 +128,9 @@ class AwsBatchProtocol(Protocol):
 
         :param containerOverrides: the same parameter that boto3 will receive
         :type containerOverrides: Dict
+
+        :param tags: the same parameter that boto3 will receive
+        :type tags: Dict
 
         :return: an API response
         :rtype: Dict
@@ -179,7 +183,7 @@ class AwsBatchClientHook(AwsBaseHook):
             AwsBatchClient.DEFAULT_DELAY_MIN = 0
             AwsBatchClient.DEFAULT_DELAY_MAX = 5
 
-        When explict delay values are used, a 1 second random jitter is applied to the
+        When explicit delay values are used, a 1 second random jitter is applied to the
         delay (e.g. a delay of 0 sec will be a ``random.uniform(0, 1)`` delay.  It is
         generally recommended that random jitter is added to API requests.  A
         convenience method is provided for this, e.g. to get a random delay of
@@ -253,12 +257,12 @@ class AwsBatchClientHook(AwsBaseHook):
             return True
 
         if job_status == "FAILED":
-            raise AirflowException("AWS Batch job ({}) failed: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) failed: {job}")
 
         if job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
-            raise AirflowException("AWS Batch job ({}) is not complete: {}".format(job_id, job))
+            raise AirflowException(f"AWS Batch job ({job_id}) is not complete: {job}")
 
-        raise AirflowException("AWS Batch job ({}) has unknown status: {}".format(job_id, job))
+        raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
     def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
@@ -352,7 +356,7 @@ class AwsBatchClientHook(AwsBaseHook):
                 return True
 
             if retries >= self.max_retries:
-                raise AirflowException("AWS Batch job ({}) status checks exceed max_retries".format(job_id))
+                raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
             retries += 1
             pause = self.exponential_delay(retries)
@@ -388,7 +392,7 @@ class AwsBatchClientHook(AwsBaseHook):
                 if error.get("Code") == "TooManyRequestsException":
                     pass  # allow it to retry, if possible
                 else:
-                    raise AirflowException("AWS Batch job ({}) description error: {}".format(job_id, err))
+                    raise AirflowException(f"AWS Batch job ({job_id}) description error: {err}")
 
             retries += 1
             if retries >= self.status_retries:
@@ -426,9 +430,7 @@ class AwsBatchClientHook(AwsBaseHook):
         jobs = response.get("jobs", [])
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
-            raise AirflowException(
-                "AWS Batch job ({}) description error: response: {}".format(job_id, response)
-            )
+            raise AirflowException(f"AWS Batch job ({job_id}) description error: response: {response}")
 
         return matching_jobs[0]
 

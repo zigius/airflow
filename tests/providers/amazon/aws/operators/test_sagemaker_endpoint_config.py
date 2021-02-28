@@ -17,8 +17,9 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -51,7 +52,7 @@ class TestSageMakerEndpointConfigOperator(unittest.TestCase):
     def test_parse_config_integers(self):
         self.sagemaker.parse_config_integers()
         for variant in self.sagemaker.config['ProductionVariants']:
-            self.assertEqual(variant['InitialInstanceCount'], int(variant['InitialInstanceCount']))
+            assert variant['InitialInstanceCount'] == int(variant['InitialInstanceCount'])
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_endpoint_config')
@@ -70,4 +71,5 @@ class TestSageMakerEndpointConfigOperator(unittest.TestCase):
             'EndpointConfigArn': 'testarn',
             'ResponseMetadata': {'HTTPStatusCode': 200},
         }
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)

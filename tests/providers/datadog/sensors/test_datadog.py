@@ -19,7 +19,6 @@
 import json
 import unittest
 from typing import List
-
 from unittest.mock import patch
 
 from airflow.models import Connection
@@ -93,7 +92,7 @@ class TestDatadogSensor(unittest.TestCase):
             response_check=None,
         )
 
-        self.assertTrue(sensor.poke({}))
+        assert sensor.poke({})
 
     @patch('airflow.providers.datadog.hooks.datadog.api.Event.query')
     @patch('airflow.providers.datadog.sensors.datadog.api.Event.query')
@@ -112,4 +111,4 @@ class TestDatadogSensor(unittest.TestCase):
             response_check=None,
         )
 
-        self.assertFalse(sensor.poke({}))
+        assert not sensor.poke({})

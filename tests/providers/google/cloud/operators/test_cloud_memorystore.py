@@ -19,9 +19,9 @@ from typing import Dict, Sequence, Tuple
 from unittest import TestCase, mock
 
 from google.api_core.retry import Retry
-from google.cloud.redis_v1.gapic.enums import FailoverInstanceRequest
-from google.cloud.redis_v1.types import Instance
 from google.cloud.memcache_v1beta2.types import cloud_memcache
+from google.cloud.redis_v1 import FailoverInstanceRequest
+from google.cloud.redis_v1.types import Instance
 
 from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceAndImportOperator,
@@ -32,13 +32,13 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreGetInstanceOperator,
     CloudMemorystoreImportOperator,
     CloudMemorystoreListInstancesOperator,
-    CloudMemorystoreScaleInstanceOperator,
-    CloudMemorystoreUpdateInstanceOperator,
     CloudMemorystoreMemcachedCreateInstanceOperator,
     CloudMemorystoreMemcachedDeleteInstanceOperator,
     CloudMemorystoreMemcachedGetInstanceOperator,
     CloudMemorystoreMemcachedListInstancesOperator,
     CloudMemorystoreMemcachedUpdateInstanceOperator,
+    CloudMemorystoreScaleInstanceOperator,
+    CloudMemorystoreUpdateInstanceOperator,
 )
 
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
@@ -78,6 +78,7 @@ class TestCloudMemorystoreCreateInstanceOperator(TestCase):
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
+        mock_hook.return_value.create_instance.return_value = Instance(name=TEST_NAME)
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
@@ -199,6 +200,7 @@ class TestCloudMemorystoreGetInstanceOperator(TestCase):
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
+        mock_hook.return_value.get_instance.return_value = Instance(name=TEST_NAME)
         task.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,

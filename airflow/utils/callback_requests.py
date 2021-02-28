@@ -34,7 +34,9 @@ class CallbackRequest:
         self.msg = msg
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        if isinstance(other, CallbackRequest):
+            return self.__dict__ == other.__dict__
+        return False
 
     def __repr__(self):
         return str(self.__dict__)
@@ -56,7 +58,7 @@ class TaskCallbackRequest(CallbackRequest):
         full_filepath: str,
         simple_task_instance: SimpleTaskInstance,
         is_failure_callback: Optional[bool] = True,
-        msg: Optional[str] = None
+        msg: Optional[str] = None,
     ):
         super().__init__(full_filepath=full_filepath, msg=msg)
         self.simple_task_instance = simple_task_instance
@@ -80,7 +82,7 @@ class DagCallbackRequest(CallbackRequest):
         dag_id: str,
         execution_date: datetime,
         is_failure_callback: Optional[bool] = True,
-        msg: Optional[str] = None
+        msg: Optional[str] = None,
     ):
         super().__init__(full_filepath=full_filepath, msg=msg)
         self.dag_id = dag_id

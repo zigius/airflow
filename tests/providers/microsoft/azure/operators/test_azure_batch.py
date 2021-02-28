@@ -18,8 +18,9 @@
 #
 import json
 import unittest
-
 from unittest import mock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -175,7 +176,7 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
         )
         self.batch_client = mock_batch.return_value
         self.mock_instance = mock_hook.return_value
-        self.assertEqual(self.batch_client, self.operator.hook.connection)
+        assert self.batch_client == self.operator.hook.connection
 
     @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
     def test_execute_without_failures(self, wait_mock):
@@ -202,7 +203,7 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
         self.operator.batch_pool_id = None
 
         # test that it raises
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             self.operator.execute(None)
 
     @mock.patch.object(AzureBatchHook, 'wait_for_all_node_state')
@@ -218,38 +219,36 @@ class TestAzureBatchOperator(unittest.TestCase):  # pylint: disable=too-many-ins
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails(self, wait_mock):
         wait_mock.return_value = True
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             self.operator_fail.execute(None)
-        self.assertEqual(
-            str(e.exception),
-            "Either target_dedicated_nodes or enable_auto_scale " "must be set. None was set",
+        assert (
+            str(ctx.value) == "Either target_dedicated_nodes or enable_auto_scale must be set. None was set"
         )
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_no_formula(self, wait_mock):
         wait_mock.return_value = True
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             self.operator2_no_formula.execute(None)
-        self.assertEqual(str(e.exception), "The auto_scale_formula is required when enable_auto_scale is set")
+        assert str(ctx.value) == "The auto_scale_formula is required when enable_auto_scale is set"
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_mutual_exclusive(self, wait_mock):
         wait_mock.return_value = True
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             self.operator_mutual_exclusive.execute(None)
-        self.assertEqual(
-            str(e.exception),
-            "Cloud service configuration and virtual machine configuration "
+        assert (
+            str(ctx.value) == "Cloud service configuration and virtual machine configuration "
             "are mutually exclusive. You must specify either of os_family and"
-            " vm_publisher",
+            " vm_publisher"
         )
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_operator_fails_invalid_args(self, wait_mock):
         wait_mock.return_value = True
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             self.operator_invalid.execute(None)
-        self.assertEqual(str(e.exception), "You must specify either vm_publisher or os_family")
+        assert str(ctx.value) == "You must specify either vm_publisher or os_family"
 
     def test_cleaning_works(self):
         self.operator.clean_up(job_id="myjob")

@@ -17,12 +17,12 @@
 # under the License.
 
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 import cx_Oracle
 import numpy
 
-from airflow.hooks.dbapi_hook import DbApiHook
+from airflow.hooks.dbapi import DbApiHook
 
 
 class OracleHook(DbApiHook):
@@ -30,6 +30,9 @@ class OracleHook(DbApiHook):
 
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'
+    conn_type = 'oracle'
+    hook_name = 'Oracle'
+
     supports_autocommit = False
 
     # pylint: disable=c-extension-no-member
@@ -147,7 +150,7 @@ class OracleHook(DbApiHook):
         """
         if target_fields:
             target_fields = ', '.join(target_fields)
-            target_fields = '({})'.format(target_fields)
+            target_fields = f'({target_fields})'
         else:
             target_fields = ''
         conn = self.get_conn()
@@ -175,9 +178,7 @@ class OracleHook(DbApiHook):
                 else:
                     lst.append(str(cell))
             values = tuple(lst)
-            sql = 'INSERT /*+ APPEND */ ' 'INTO {0} {1} VALUES ({2})'.format(
-                table, target_fields, ','.join(values)
-            )
+            sql = f"INSERT /*+ APPEND */ INTO {table} {target_fields} VALUES ({','.join(values)})"
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()  # type: ignore[attr-defined]

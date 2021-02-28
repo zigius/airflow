@@ -19,9 +19,9 @@
 import importlib
 import sys
 from inspect import isabstract
-from typing import Any
 from unittest import TestCase, mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.models.baseoperator import BaseOperator
@@ -30,22 +30,20 @@ from tests.deprecated_classes import ALL, RENAMED_ALL
 
 class TestMovingCoreToContrib(TestCase):
     @staticmethod
-    def assert_warning(msg: str, warning: Any):
-        error = "Text '{}' not in warnings".format(msg)
-        assert any(msg in str(w) for w in warning.warnings), error
+    def assert_warning(msg: str, warnings):
+        error = f"Text '{msg}' not in warnings"
+        assert any(msg in str(w) for w in warnings), error
 
     def assert_is_subclass(self, clazz, other):
-        self.assertTrue(
-            issubclass(clazz, other), "{} is not subclass of {}".format(clazz, other)
-        )
+        assert issubclass(clazz, other), f"{clazz} is not subclass of {other}"
 
     def assert_proper_import(self, old_resource, new_resource):
         new_path, _, _ = new_resource.rpartition(".")
         old_path, _, _ = old_resource.rpartition(".")
-        with self.assertWarns(DeprecationWarning) as warning_msg:
+        with pytest.warns(DeprecationWarning) as warnings:
             # Reload to see deprecation warning each time
             importlib.reload(importlib.import_module(old_path))
-            self.assert_warning(new_path, warning_msg)
+            self.assert_warning(new_path, warnings)
 
     def skip_test_with_mssql_in_py38(self, path_a="", path_b=""):
         py_38 = sys.version_info >= (3, 8)
@@ -66,9 +64,7 @@ class TestMovingCoreToContrib(TestCase):
         if isabstract(class_) and not parent:
             class_name = f"Mock({class_.__name__})"
 
-            attributes = {
-                a: mock.MagicMock() for a in class_.__abstractmethods__
-            }
+            attributes = {a: mock.MagicMock() for a in class_.__abstractmethods__}
 
             new_class = type(class_name, (class_,), attributes)
             return new_class
@@ -79,21 +75,21 @@ class TestMovingCoreToContrib(TestCase):
         self.skip_test_with_mssql_in_py38(new_module, old_module)
         deprecation_warning_msg = "This class is deprecated."
         old_module_class = self.get_class_from_path(old_module)
-        with self.assertWarnsRegex(DeprecationWarning, deprecation_warning_msg) as wrn:
-            with mock.patch("{}.__init__".format(new_module)) as init_mock:
+        with pytest.warns(DeprecationWarning, match=deprecation_warning_msg) as warnings:
+            with mock.patch(f"{new_module}.__init__") as init_mock:
                 init_mock.return_value = None
                 klass = old_module_class()
                 if isinstance(klass, BaseOperator):
                     # In case of operators we are validating that proper stacklevel
                     # is used (=3 or =4 if @apply_defaults)
-                    assert len(wrn.warnings) == 1
-                    assert wrn.warnings[0].filename == __file__
-                init_mock.assert_called_once_with()
+                    assert len(warnings) >= 1
+                    assert any(warning.filename == __file__ for warning in warnings)
+                init_mock.assert_called_once()
 
     @parameterized.expand(ALL)
     def test_is_subclass(self, parent_class_path, sub_class_path):
         self.skip_test_with_mssql_in_py38(parent_class_path, sub_class_path)
-        with mock.patch("{}.__init__".format(parent_class_path)):
+        with mock.patch(f"{parent_class_path}.__init__"):
             parent_class_path = self.get_class_from_path(parent_class_path, parent=True)
             sub_class_path = self.get_class_from_path(sub_class_path)
             self.assert_is_subclass(sub_class_path, parent_class_path)
@@ -111,9 +107,7 @@ class TestMovingCoreToContrib(TestCase):
 
         This will tell us to use new_A instead of old_B.
         """
-        all_classes_by_old = {
-            old: new for new, old in ALL
-        }
+        all_classes_by_old = {old: new for new, old in ALL}
 
         for new, old in ALL:
             # Using if statement allows us to create a developer-friendly message only when we need it.

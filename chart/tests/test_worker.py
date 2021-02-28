@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+
 from tests.helm_template_generator import render_chart
 
 
@@ -34,7 +35,7 @@ class WorkerTest(unittest.TestCase):
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        self.assertEqual("test-volume", jmespath.search("spec.template.spec.volumes[0].name", docs[0]))
-        self.assertEqual(
-            "test-volume", jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
+        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume" == jmespath.search(
+            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )

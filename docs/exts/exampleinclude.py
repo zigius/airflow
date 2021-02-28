@@ -34,6 +34,7 @@ from sphinx.util.nodes import set_source_info
 
 try:
     import sphinx_airflow_theme  # pylint: disable=unused-import
+
     airflow_theme_is_available = True
 except ImportError:
     airflow_theme_is_available = False
@@ -139,7 +140,7 @@ def register_source(app, env, modname):
     """
     entry = env._viewcode_modules.get(modname, None)
     if entry is False:
-        print("[%s] Entry is false for " % modname)
+        print(f"[{modname}] Entry is false for ")
         return False
 
     code_tags = app.emit_firstresult("viewcode-find-source", modname)
@@ -147,8 +148,9 @@ def register_source(app, env, modname):
         try:
             analyzer = ModuleAnalyzer.for_module(modname)
         except Exception as ex:  # pylint: disable=broad-except
-            logger.info("Module \"%s\" could not be loaded. Full source will not be available. \"%s\"",
-                        modname, ex)
+            logger.info(
+                "Module \"%s\" could not be loaded. Full source will not be available. \"%s\"", modname, ex
+            )
             env._viewcode_modules[modname] = False
             return False
 
@@ -168,6 +170,8 @@ def register_source(app, env, modname):
         env._viewcode_modules[modname] = entry
 
     return True
+
+
 # pylint: enable=protected-access
 
 
@@ -232,6 +236,8 @@ def doctree_read(app, doctree):
         onlynode = create_node(env, relative_path, show_button)
 
         objnode.replace_self(onlynode)
+
+
 # pylint: enable=protected-access
 
 

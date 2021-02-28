@@ -25,12 +25,12 @@ retrieve data from it, and write that data to a file for other uses.
 """
 import logging
 import time
-from typing import Optional, List, Iterable
+from typing import Iterable, List, Optional
 
 import pandas as pd
 from simple_salesforce import Salesforce, api
 
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ class SalesforceHook(BaseHook):
         :return: all instances of the object from Salesforce.
         :rtype: dict
         """
-        query = "SELECT {} FROM {}".format(",".join(fields), obj)
+        query = f"SELECT {','.join(fields)} FROM {obj}"
 
         self.log.info(
             "Making query to Salesforce: %s",
@@ -240,7 +240,7 @@ class SalesforceHook(BaseHook):
         """
         fmt = fmt.lower()
         if fmt not in ['csv', 'json', 'ndjson']:
-            raise ValueError("Format value is not recognized: {}".format(fmt))
+            raise ValueError(f"Format value is not recognized: {fmt}")
 
         df = self.object_to_df(
             query_results=query_results,

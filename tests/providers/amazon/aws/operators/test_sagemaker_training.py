@@ -16,8 +16,9 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -28,13 +29,13 @@ role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'
 
 key = 'test/data'
-data_url = 's3://{}/{}'.format(bucket, key)
+data_url = f's3://{bucket}/{key}'
 
 job_name = 'test-job-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 create_training_params = {
     'AlgorithmSpecification': {'TrainingImage': image, 'TrainingInputMode': 'File'},
     'RoleArn': role,
@@ -73,17 +74,14 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
 
     def test_parse_config_integers(self):
         self.sagemaker.parse_config_integers()
-        self.assertEqual(
-            self.sagemaker.config['ResourceConfig']['InstanceCount'],
-            int(self.sagemaker.config['ResourceConfig']['InstanceCount']),
+        assert self.sagemaker.config['ResourceConfig']['InstanceCount'] == int(
+            self.sagemaker.config['ResourceConfig']['InstanceCount']
         )
-        self.assertEqual(
-            self.sagemaker.config['ResourceConfig']['VolumeSizeInGB'],
-            int(self.sagemaker.config['ResourceConfig']['VolumeSizeInGB']),
+        assert self.sagemaker.config['ResourceConfig']['VolumeSizeInGB'] == int(
+            self.sagemaker.config['ResourceConfig']['VolumeSizeInGB']
         )
-        self.assertEqual(
-            self.sagemaker.config['StoppingCondition']['MaxRuntimeInSeconds'],
-            int(self.sagemaker.config['StoppingCondition']['MaxRuntimeInSeconds']),
+        assert self.sagemaker.config['StoppingCondition']['MaxRuntimeInSeconds'] == int(
+            self.sagemaker.config['StoppingCondition']['MaxRuntimeInSeconds']
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -109,7 +107,8 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
             'TrainingJobArn': 'testarn',
             'ResponseMetadata': {'HTTPStatusCode': 404},
         }
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)
 
     # pylint: enable=unused-argument
 
@@ -144,4 +143,5 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         self.sagemaker.action_if_job_exists = "fail"
         mock_create_training_job.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
         mock_list_training_jobs.return_value = [{"TrainingJobName": job_name}]
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)

@@ -20,8 +20,8 @@ from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
-from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.hooks.base import BaseHook
+from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -40,7 +40,7 @@ class QuboleSensor(BaseSensorOperator):
         if 'poke_interval' in kwargs and kwargs['poke_interval'] < 5:
             raise AirflowException(
                 "Sorry, poke_interval can't be less than 5 sec for "
-                "task '{0}' in dag '{1}'.".format(kwargs['task_id'], kwargs['dag'].dag_id)
+                "task '{}' in dag '{}'.".format(kwargs['task_id'], kwargs['dag'].dag_id)
             )
 
         super().__init__(**kwargs)

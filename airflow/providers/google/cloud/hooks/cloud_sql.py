@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
 import requests
-from googleapiclient.discovery import build, Resource
+from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
 
@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -76,10 +76,15 @@ class CloudSQLHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
+    conn_name_attr = 'gcp_conn_id'
+    default_conn_name = 'google_cloud_default'
+    conn_type = 'gcpcloudsql'
+    hook_name = 'Google Cloud SQL'
+
     def __init__(
         self,
         api_version: str,
-        gcp_conn_id: str = "google_cloud_default",
+        gcp_conn_id: str = default_conn_name,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
@@ -358,7 +363,7 @@ class CloudSQLHook(GoogleBaseHook):
             operation_name = response["name"]
             self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
         except HttpError as ex:
-            raise AirflowException('Importing instance {} failed: {}'.format(instance, ex.content))
+            raise AirflowException(f'Importing instance {instance} failed: {ex.content}')
 
     def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:
         """
@@ -544,7 +549,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         """
         self._download_sql_proxy_if_needed()
         if self.sql_proxy_process:
-            raise AirflowException("The sql proxy is already running: {}".format(self.sql_proxy_process))
+            raise AirflowException(f"The sql proxy is already running: {self.sql_proxy_process}")
         else:
             command_to_run = [self.sql_proxy_path]
             command_to_run.extend(self.command_line_parameters)
@@ -564,13 +569,13 @@ class CloudSqlProxyRunner(LoggingMixin):
                 if line == '' and return_code is not None:
                     self.sql_proxy_process = None
                     raise AirflowException(
-                        "The cloud_sql_proxy finished early with return code {}!".format(return_code)
+                        f"The cloud_sql_proxy finished early with return code {return_code}!"
                     )
                 if line != '':
                     self.log.info(line)
                 if "googleapi: Error" in line or "invalid instance name:" in line:
                     self.stop_proxy()
-                    raise AirflowException("Error when starting the cloud_sql_proxy {}!".format(line))
+                    raise AirflowException(f"Error when starting the cloud_sql_proxy {line}!")
                 if "Ready for new connections" in line:
                     return
 
@@ -646,10 +651,10 @@ CONNECTION_URIS = {
     "mysql": {
         "proxy": {
             "tcp": "mysql://{user}:{password}@127.0.0.1:{proxy_port}/{database}",
-            "socket": "mysql://{user}:{password}@localhost/{database}?" "unix_socket={socket_path}",
+            "socket": "mysql://{user}:{password}@localhost/{database}?unix_socket={socket_path}",
         },
         "public": {
-            "ssl": "mysql://{user}:{password}@{public_ip}:{public_port}/{database}?" "ssl={ssl_spec}",
+            "ssl": "mysql://{user}:{password}@{public_ip}:{public_port}/{database}?ssl={ssl_spec}",
             "non-ssl": "mysql://{user}:{password}@{public_ip}:{public_port}/{database}",
         },
     },
@@ -662,7 +667,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
     # pylint: disable=too-many-instance-attributes
     """
     Serves DB connection configuration for Google Cloud SQL (Connections
-    of *gcpcloudsql://* type).
+    of *gcpcloudsqldb://* type).
 
     The hook is a "meta" one. It does not perform an actual connection.
     It is there to retrieve all the parameters configured in gcpcloudsql:// connection,
@@ -709,6 +714,11 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
            in the connection URL
     :type default_gcp_project_id: str
     """
+    conn_name_attr = 'gcp_cloudsql_conn_id'
+    default_conn_name = 'google_cloud_sql_default'
+    conn_type = 'gcpcloudsqldb'
+    hook_name = 'Google Cloud SQL Database'
+
     _conn = None  # type: Optional[Any]
 
     def __init__(
@@ -735,7 +745,7 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
         self.user = self.cloudsql_connection.login  # type: Optional[str]
         self.password = self.cloudsql_connection.password  # type: Optional[str]
         self.public_ip = self.cloudsql_connection.host  # type: Optional[str]
-        self.public_port = self.cloudsql_connection.port  # type: Optional[str]
+        self.public_port = self.cloudsql_connection.port  # type: Optional[int]
         self.sslcert = self.extras.get('sslcert')  # type: Optional[str]
         self.sslkey = self.extras.get('sslkey')  # type: Optional[str]
         self.sslrootcert = self.extras.get('sslrootcert')  # type: Optional[str]
@@ -758,11 +768,9 @@ class CloudSQLDatabaseHook(BaseHook):  # noqa
     @staticmethod
     def _check_ssl_file(file_to_check, name) -> None:
         if not file_to_check:
-            raise AirflowException("SSL connections requires {name} to be set".format(name=name))
+            raise AirflowException(f"SSL connections requires {name} to be set")
         if not os.path.isfile(file_to_check):
-            raise AirflowException(
-                "The {file_to_check} must be a readable file".format(file_to_check=file_to_check)
-            )
+            raise AirflowException(f"The {file_to_check} must be a readable file")
 
     def _validate_inputs(self) -> None:
         if self.project_id == '':

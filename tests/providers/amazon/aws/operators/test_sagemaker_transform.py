@@ -17,8 +17,9 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -29,7 +30,7 @@ role = 'arn:aws:iam:role/test-role'
 bucket = 'test-bucket'
 
 key = 'test/data'
-data_url = 's3://{}/{}'.format(bucket, key)
+data_url = f's3://{bucket}/{key}'
 
 job_name = 'test-job-name'
 
@@ -37,7 +38,7 @@ model_name = 'test-model-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 
 create_transform_params = {
     'TransformJobName': job_name,
@@ -77,12 +78,11 @@ class TestSageMakerTransformOperator(unittest.TestCase):
     def test_parse_config_integers(self):
         self.sagemaker.parse_config_integers()
         test_config = self.sagemaker.config['Transform']
-        self.assertEqual(
-            test_config['TransformResources']['InstanceCount'],
-            int(test_config['TransformResources']['InstanceCount']),
+        assert test_config['TransformResources']['InstanceCount'] == int(
+            test_config['TransformResources']['InstanceCount']
         )
-        self.assertEqual(test_config['MaxConcurrentTransforms'], int(test_config['MaxConcurrentTransforms']))
-        self.assertEqual(test_config['MaxPayloadInMB'], int(test_config['MaxPayloadInMB']))
+        assert test_config['MaxConcurrentTransforms'] == int(test_config['MaxConcurrentTransforms'])
+        assert test_config['MaxPayloadInMB'] == int(test_config['MaxPayloadInMB'])
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
@@ -106,4 +106,5 @@ class TestSageMakerTransformOperator(unittest.TestCase):
             'TransformJobArn': 'testarn',
             'ResponseMetadata': {'HTTPStatusCode': 404},
         }
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)

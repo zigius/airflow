@@ -26,15 +26,13 @@ ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
 
-NO_DB_QUERY_EXCEPTION = [
-    "/airflow/example_dags/example_subdag_operator.py"
-]
+NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
 
 class TestExampleDags(unittest.TestCase):
     def test_should_be_importable(self):
         example_dags = list(glob(f"{ROOT_FOLDER}/airflow/**/example_dags/example_*.py", recursive=True))
-        self.assertNotEqual(0, len(example_dags))
+        assert 0 != len(example_dags)
         for filepath in example_dags:
             relative_filepath = os.path.relpath(filepath, ROOT_FOLDER)
             with self.subTest(f"File {relative_filepath} should contain dags"):
@@ -42,8 +40,8 @@ class TestExampleDags(unittest.TestCase):
                     dag_folder=filepath,
                     include_examples=False,
                 )
-                self.assertEqual(0, len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}")
-                self.assertGreaterEqual(len(dagbag.dag_ids), 1)
+                assert 0 == len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}"
+                assert len(dagbag.dag_ids) >= 1
 
     def test_should_not_do_database_queries(self):
         example_dags = glob(f"{ROOT_FOLDER}/airflow/**/example_dags/example_*.py", recursive=True)
@@ -52,7 +50,7 @@ class TestExampleDags(unittest.TestCase):
             for dag_file in example_dags
             if any(not dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
         ]
-        self.assertNotEqual(0, len(example_dags))
+        assert 0 != len(example_dags)
         for filepath in example_dags:
             relative_filepath = os.path.relpath(filepath, ROOT_FOLDER)
             with self.subTest(f"File {relative_filepath} shouldn't do database queries"):

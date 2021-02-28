@@ -19,7 +19,7 @@
 """Add sensor_instance table
 
 Revision ID: e38be357a868
-Revises: 939bb1e647c8
+Revises: 8d48763f6d53
 Create Date: 2019-06-07 04:03:17.003939
 
 """
@@ -27,29 +27,35 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import func
 from sqlalchemy.dialects import mysql
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = 'e38be357a868'
-down_revision = 'da3f683c3a5a'
+down_revision = '8d48763f6d53'
 branch_labels = None
 depends_on = None
 
 
-def mssql_timestamp():   # noqa: D103
+def mssql_timestamp():  # noqa: D103
     return sa.DateTime()
 
 
-def mysql_timestamp():   # noqa: D103
+def mysql_timestamp():  # noqa: D103
     return mysql.TIMESTAMP(fsp=6)
 
 
-def sa_timestamp():   # noqa: D103
+def sa_timestamp():  # noqa: D103
     return sa.TIMESTAMP(timezone=True)
 
 
 def upgrade():  # noqa: D103
 
     conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if 'sensor_instance' in tables:
+        return
+
     if conn.dialect.name == 'mysql':
         timestamp = mysql_timestamp
     elif conn.dialect.name == 'mssql':
@@ -74,14 +80,9 @@ def upgrade():  # noqa: D103
         sa.Column('execution_context', sa.Text(), nullable=True),
         sa.Column('created_at', timestamp(), default=func.now(), nullable=False),
         sa.Column('updated_at', timestamp(), default=func.now(), nullable=False),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
     )
-    op.create_index(
-        'ti_primary_key',
-        'sensor_instance',
-        ['dag_id', 'task_id', 'execution_date'],
-        unique=True
-    )
+    op.create_index('ti_primary_key', 'sensor_instance', ['dag_id', 'task_id', 'execution_date'], unique=True)
     op.create_index('si_hashcode', 'sensor_instance', ['hashcode'], unique=False)
     op.create_index('si_shardcode', 'sensor_instance', ['shardcode'], unique=False)
     op.create_index('si_state_shard', 'sensor_instance', ['state', 'shardcode'], unique=False)
@@ -89,4 +90,8 @@ def upgrade():  # noqa: D103
 
 
 def downgrade():  # noqa: D103
-    op.drop_table('sensor_instance')
+    conn = op.get_bind()
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if 'sensor_instance' in tables:
+        op.drop_table('sensor_instance')

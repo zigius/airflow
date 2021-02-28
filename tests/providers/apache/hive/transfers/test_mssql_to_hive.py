@@ -44,24 +44,24 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
         # pylint: disable=c-extension-no-member
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.BINARY.value)
 
-        self.assertEqual(mapped_type, 'INT')
+        assert mapped_type == 'INT'
 
     def test_type_map_decimal(self):
         # pylint: disable=c-extension-no-member
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.DECIMAL.value)
 
-        self.assertEqual(mapped_type, 'FLOAT')
+        assert mapped_type == 'FLOAT'
 
     def test_type_map_number(self):
         # pylint: disable=c-extension-no-member
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.NUMBER.value)
 
-        self.assertEqual(mapped_type, 'INT')
+        assert mapped_type == 'INT'
 
     def test_type_map_string(self):
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(None)
 
-        self.assertEqual(mapped_type, 'STRING')
+        assert mapped_type == 'STRING'
 
     @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.csv')
     @patch('airflow.providers.apache.hive.transfers.mssql_to_hive.NamedTemporaryFile')
@@ -114,7 +114,7 @@ class TestMsSqlToHiveTransfer(unittest.TestCase):
         col_count = 0
         for field in mock_mssql_hook_cursor.return_value.description:
             col_count += 1
-            col_position = "Column{position}".format(position=col_count)
+            col_position = f"Column{col_count}"
             field_dict[col_position] = mssql_to_hive_transfer.type_map(field[1])
         mock_hive_hook.return_value.load_file.assert_called_once_with(
             mock_tmp_file.name,

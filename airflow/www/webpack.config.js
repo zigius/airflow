@@ -37,21 +37,26 @@ const BUILD_DIR = path.resolve(__dirname, './static/dist');
 const config = {
   entry: {
     airflowDefaultTheme: `${STATIC_DIR}/css/bootstrap-theme.css`,
-    base: `${STATIC_DIR}/js/base.js`,
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
     dags: `${STATIC_DIR}/css/dags.css`,
     flash: `${STATIC_DIR}/css/flash.css`,
     gantt: `${STATIC_DIR}/css/gantt.css`,
-    ganttChartD3v2: `${STATIC_DIR}/js/gantt-chart-d3v2.js`,
+    ganttChartD3v2: `${STATIC_DIR}/js/gantt_chart_d3v2.js`,
     graph: `${STATIC_DIR}/css/graph.css`,
     ie: `${STATIC_DIR}/js/ie.js`,
     loadingDots: `${STATIC_DIR}/css/loading-dots.css`,
-    main: `${STATIC_DIR}/css/main.css`,
+    main: [`${STATIC_DIR}/css/main.css`, `${STATIC_DIR}/js/main.js`],
     materialIcons: `${STATIC_DIR}/css/material-icons.css`,
     moment: 'moment-timezone',
     switch: `${STATIC_DIR}/css/switch.css`,
-    taskInstances: `${STATIC_DIR}/js/task-instances.js`,
+    taskInstances: `${STATIC_DIR}/js/task_instances.js`,
+    taskInstance: `${STATIC_DIR}/js/task_instance.js`,
     tree: `${STATIC_DIR}/css/tree.css`,
+    circles: `${STATIC_DIR}/js/circles.js`,
+    durationChart: `${STATIC_DIR}/js/duration_chart.js`,
+    trigger: `${STATIC_DIR}/js/trigger.js`,
+    variableEdit: `${STATIC_DIR}/js/variable_edit.js`,
+    dagCode: `${STATIC_DIR}/js/dag_code.js`,
   },
   output: {
     path: BUILD_DIR,
@@ -186,6 +191,22 @@ const config = {
         },
         {
           from: 'node_modules/redoc/bundles/redoc.standalone.*',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/codemirror/lib/codemirror.*',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/codemirror/addon/lint/**.*',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/codemirror/mode/javascript/javascript.js',
+          flatten: true,
+        },
+        {
+          from: 'node_modules/jshint/dist/jshint.js',
           flatten: true,
         },
       ],

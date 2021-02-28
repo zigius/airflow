@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
+import pytest
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
@@ -46,7 +47,7 @@ class FileParsers(unittest.TestCase):
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @parameterized.expand(
@@ -58,7 +59,7 @@ class FileParsers(unittest.TestCase):
     )
     def test_json_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.json")
 
 
@@ -75,12 +76,12 @@ class TestLoadVariables(unittest.TestCase):
     def test_env_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
             variables = local_filesystem.load_variables("a.env")
-            self.assertEqual(expected_variables, variables)
+            assert expected_variables == variables
 
     @parameterized.expand((("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),))
     def test_env_file_invalid_logic(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+            with pytest.raises(AirflowException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @parameterized.expand(
@@ -94,29 +95,32 @@ class TestLoadVariables(unittest.TestCase):
     def test_json_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(json.dumps(file_content)):
             variables = local_filesystem.load_variables("a.json")
-            self.assertEqual(expected_variables, variables)
+            assert expected_variables == variables
 
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
+            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
             local_filesystem.load_variables("a.json")
 
     @parameterized.expand(
         (
             ("KEY: AAA", {"KEY": "AAA"}),
-            ("""
+            (
+                """
             KEY_A: AAA
             KEY_B: BBB
-            """, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            """,
+                {"KEY_A": "AAA", "KEY_B": "BBB"},
+            ),
         )
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
             variables = local_filesystem.load_variables('a.yaml')
-            self.assertEqual(expected_variables, variables)
+            assert expected_variables == variables
 
 
 class TestLoadConnection(unittest.TestCase):
@@ -141,11 +145,10 @@ class TestLoadConnection(unittest.TestCase):
         with mock_local_file(file_content):
             connection_by_conn_id = local_filesystem.load_connections_dict("a.env")
             connection_uris_by_conn_id = {
-                conn_id: connection.get_uri()
-                for conn_id, connection in connection_by_conn_id.items()
+                conn_id: connection.get_uri() for conn_id, connection in connection_by_conn_id.items()
             }
 
-            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+            assert expected_connection_uris == connection_uris_by_conn_id
 
     @parameterized.expand(
         (
@@ -155,7 +158,7 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_env_file_invalid_format(self, content, expected_message):
         with mock_local_file(content):
-            with self.assertRaisesRegex(AirflowFileParseException, re.escape(expected_message)):
+            with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_connections_dict("a.env")
 
     @parameterized.expand(
@@ -170,11 +173,10 @@ class TestLoadConnection(unittest.TestCase):
         with mock_local_file(json.dumps(file_content)):
             connections_by_conn_id = local_filesystem.load_connections_dict("a.json")
             connection_uris_by_conn_id = {
-                conn_id: connection.get_uri()
-                for conn_id, connection in connections_by_conn_id.items()
+                conn_id: connection.get_uri() for conn_id, connection in connections_by_conn_id.items()
             }
 
-            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+            assert expected_connection_uris == connection_uris_by_conn_id
 
     @parameterized.expand(
         (
@@ -189,21 +191,22 @@ class TestLoadConnection(unittest.TestCase):
     )
     def test_env_file_invalid_input(self, file_content, expected_connection_uris):
         with mock_local_file(json.dumps(file_content)):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_connection_uris)):
+            with pytest.raises(AirflowException, match=re.escape(expected_connection_uris)):
                 local_filesystem.load_connections_dict("a.json")
 
     @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
     def test_missing_file(self, mock_exists):
-        with self.assertRaisesRegex(
+        with pytest.raises(
             AirflowException,
-            re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
+            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
         ):
             local_filesystem.load_connections_dict("a.json")
 
     @parameterized.expand(
         (
             ("""CONN_A: 'mysql://host_a'""", {"CONN_A": "mysql://host_a"}),
-            ("""
+            (
+                """
             conn_a: mysql://hosta
             conn_b:
                conn_type: scheme
@@ -216,21 +219,25 @@ class TestLoadConnection(unittest.TestCase):
                  extra__google_cloud_platform__keyfile_dict:
                    a: b
                  extra__google_cloud_platform__keyfile_path: asaa""",
-                {"conn_a": "mysql://hosta",
-                    "conn_b": ''.join("""scheme://Login:None@host:1234/lschema?
+                {
+                    "conn_a": "mysql://hosta",
+                    "conn_b": ''.join(
+                        """scheme://Login:None@host:1234/lschema?
                         extra__google_cloud_platform__keyfile_dict=%7B%27a%27%3A+%27b%27%7D
-                        &extra__google_cloud_platform__keyfile_path=asaa""".split())}),
+                        &extra__google_cloud_platform__keyfile_path=asaa""".split()
+                    ),
+                },
+            ),
         )
     )
     def test_yaml_file_should_load_connection(self, file_content, expected_connection_uris):
         with mock_local_file(file_content):
             connections_by_conn_id = local_filesystem.load_connections_dict("a.yaml")
             connection_uris_by_conn_id = {
-                conn_id: connection.get_uri()
-                for conn_id, connection in connections_by_conn_id.items()
+                conn_id: connection.get_uri() for conn_id, connection in connections_by_conn_id.items()
             }
 
-            self.assertEqual(expected_connection_uris, connection_uris_by_conn_id)
+            assert expected_connection_uris == connection_uris_by_conn_id
 
     @parameterized.expand(
         (
@@ -291,11 +298,12 @@ class TestLoadConnection(unittest.TestCase):
             connection_uris_by_conn_id = {
                 conn_id: connection.extra_dejson for conn_id, connection in connections_by_conn_id.items()
             }
-            self.assertEqual(expected_extras, connection_uris_by_conn_id)
+            assert expected_extras == connection_uris_by_conn_id
 
     @parameterized.expand(
         (
-            ("""conn_c:
+            (
+                """conn_c:
                conn_type: scheme
                host: host
                schema: lschema
@@ -307,74 +315,69 @@ class TestLoadConnection(unittest.TestCase):
                extra_dejson:
                  aws_conn_id: bbb
                  region_name: ccc
-                 """, "The extra and extra_dejson parameters are mutually exclusive."),
+                 """,
+                "The extra and extra_dejson parameters are mutually exclusive.",
+            ),
         )
     )
     def test_yaml_invalid_extra(self, file_content, expected_message):
         with mock_local_file(file_content):
-            with self.assertRaisesRegex(AirflowException, re.escape(expected_message)):
+            with pytest.raises(AirflowException, match=re.escape(expected_message)):
                 local_filesystem.load_connections_dict("a.yaml")
 
     @parameterized.expand(
-        (
-            "CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",
-        ),
+        ("CONN_ID=mysql://host_1/\nCONN_ID=mysql://host_2/",),
     )
     def test_ensure_unique_connection_env(self, file_content):
         with mock_local_file(file_content):
-            with self.assertRaises(ConnectionNotUnique):
+            with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.env")
 
     @parameterized.expand(
         (
-            (
-                {"CONN_ID": ["mysql://host_1", "mysql://host_2"]},
-            ),
-            (
-                {"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},
-            ),
+            ({"CONN_ID": ["mysql://host_1", "mysql://host_2"]},),
+            ({"CONN_ID": [{"uri": "mysql://host_1"}, {"uri": "mysql://host_2"}]},),
         )
     )
     def test_ensure_unique_connection_json(self, file_content):
         with mock_local_file(json.dumps(file_content)):
-            with self.assertRaises(ConnectionNotUnique):
+            with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.json")
 
     @parameterized.expand(
         (
-            ("""
+            (
+                """
             conn_a:
               - mysql://hosta
-              - mysql://hostb"""),
+              - mysql://hostb"""
+            ),
         ),
     )
     def test_ensure_unique_connection_yaml(self, file_content):
         with mock_local_file(file_content):
-            with self.assertRaises(ConnectionNotUnique):
+            with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.yaml")
 
 
 class TestLocalFileBackend(unittest.TestCase):
     def test_should_read_variable(self):
         with NamedTemporaryFile(suffix="var.env") as tmp_file:
-            tmp_file.write("KEY_A=VAL_A".encode())
+            tmp_file.write(b"KEY_A=VAL_A")
             tmp_file.flush()
             backend = LocalFilesystemBackend(variables_file_path=tmp_file.name)
-            self.assertEqual("VAL_A", backend.get_variable("KEY_A"))
-            self.assertIsNone(backend.get_variable("KEY_B"))
+            assert "VAL_A" == backend.get_variable("KEY_A")
+            assert backend.get_variable("KEY_B") is None
 
     def test_should_read_connection(self):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
-            tmp_file.write("CONN_A=mysql://host_a".encode())
+            tmp_file.write(b"CONN_A=mysql://host_a")
             tmp_file.flush()
             backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
-            self.assertEqual(
-                ["mysql://host_a"],
-                [conn.get_uri() for conn in backend.get_connections("CONN_A")],
-            )
-            self.assertIsNone(backend.get_variable("CONN_B"))
+            assert ["mysql://host_a"] == [conn.get_uri() for conn in backend.get_connections("CONN_A")]
+            assert backend.get_variable("CONN_B") is None
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()
-        self.assertEqual([], backend.get_connections("CONN_A"))
-        self.assertIsNone(backend.get_variable("VAR_A"))
+        assert [] == backend.get_connections("CONN_A")
+        assert backend.get_variable("VAR_A") is None

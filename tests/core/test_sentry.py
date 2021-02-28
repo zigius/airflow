@@ -64,6 +64,7 @@ class TestSentryHook(unittest.TestCase):
     @conf_vars({('sentry', 'sentry_on'): 'True'})
     def setUp(self):
         from airflow import sentry
+
         importlib.reload(sentry)
         self.sentry = sentry.ConfiguredSentry()
 
@@ -90,7 +91,7 @@ class TestSentryHook(unittest.TestCase):
         self.sentry.add_tagging(task_instance=self.ti)
         with configure_scope() as scope:
             for key, value in scope._tags.items():
-                self.assertEqual(TEST_SCOPE[key], value)
+                assert TEST_SCOPE[key] == value
 
     @freeze_time(CRUMB_DATE.isoformat())
     def test_add_breadcrumbs(self):
@@ -102,4 +103,4 @@ class TestSentryHook(unittest.TestCase):
 
         with configure_scope() as scope:
             test_crumb = scope._breadcrumbs.pop()
-            self.assertEqual(CRUMB, test_crumb)
+            assert CRUMB == test_crumb

@@ -235,7 +235,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         gcs_hook = GCSHook(
-            google_cloud_storage_conn_id=self.gcp_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
@@ -337,7 +337,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.report, str) and self.report.endswith('.json'):
-            with open(self.report, 'r') as file:
+            with open(self.report) as file:
                 self.report = json.load(file)
 
     def execute(self, context: dict):

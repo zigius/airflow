@@ -17,8 +17,7 @@
 
 import unittest
 from collections import OrderedDict
-
-import mock
+from unittest import mock
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
@@ -29,7 +28,7 @@ QUERY = "SELECT id, company FROM Lead WHERE company = 'Hello World Inc'"
 SALESFORCE_CONNECTION_ID = "test-salesforce-connection"
 GCS_BUCKET = "test-bucket"
 GCS_OBJECT_PATH = "path/to/test-file-path"
-EXPECTED_GCS_URI = "gs://{}/{}".format(GCS_BUCKET, GCS_OBJECT_PATH)
+EXPECTED_GCS_URI = f"gs://{GCS_BUCKET}/{GCS_OBJECT_PATH}"
 GCP_CONNECTION_ID = "google_cloud_default"
 SALESFORCE_RESPONSE = {
     'records': [
@@ -91,4 +90,4 @@ class TestSalesforceToGcsOperator(unittest.TestCase):
             bucket_name=GCS_BUCKET, object_name=GCS_OBJECT_PATH, filename=mock.ANY, gzip=False
         )
 
-        self.assertEqual(EXPECTED_GCS_URI, result)
+        assert EXPECTED_GCS_URI == result

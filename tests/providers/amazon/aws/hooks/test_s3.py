@@ -43,6 +43,16 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
+    @mock_s3
+    def test_use_threads_default_value(self):
+        hook = S3Hook()
+        assert hook.transfer_config.use_threads is True
+
+    @mock_s3
+    def test_use_threads_set_value(self):
+        hook = S3Hook(transfer_config_args={"use_threads": False})
+        assert hook.transfer_config.use_threads is False
+
     def test_parse_s3_url(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
         assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
@@ -118,8 +128,8 @@ class TestAwsS3Hook:
         bucket = hook.get_bucket(s3_bucket)
 
         # we don't need to test the paginator that's covered by boto tests
-        keys = ["%s/b" % i for i in range(2)]
-        dirs = ["%s/" % i for i in range(2)]
+        keys = [f"{i}/b" for i in range(2)]
+        dirs = [f"{i}/" for i in range(2)]
         for key in keys:
             bucket.put_object(Key=key, Body=b'a')
 
@@ -152,9 +162,9 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
 
         assert hook.check_for_key('a', s3_bucket) is True
-        assert hook.check_for_key('s3://{}//a'.format(s3_bucket)) is True
+        assert hook.check_for_key(f's3://{s3_bucket}//a') is True
         assert hook.check_for_key('b', s3_bucket) is False
-        assert hook.check_for_key('s3://{}//b'.format(s3_bucket)) is False
+        assert hook.check_for_key(f's3://{s3_bucket}//b') is False
 
     def test_check_for_key_raises_error_with_invalid_conn_id(self, monkeypatch, s3_bucket):
         monkeypatch.delenv('AWS_PROFILE', raising=False)
@@ -170,7 +180,7 @@ class TestAwsS3Hook:
         bucket.put_object(Key='a', Body=b'a')
 
         assert hook.get_key('a', s3_bucket).key == 'a'
-        assert hook.get_key('s3://{}/a'.format(s3_bucket)).key == 'a'
+        assert hook.get_key(f's3://{s3_bucket}/a').key == 'a'
 
     def test_read_key(self, s3_bucket):
         hook = S3Hook()
@@ -196,13 +206,13 @@ class TestAwsS3Hook:
 
         assert hook.check_for_wildcard_key('a*', s3_bucket) is True
         assert hook.check_for_wildcard_key('abc', s3_bucket) is True
-        assert hook.check_for_wildcard_key('s3://{}//a*'.format(s3_bucket)) is True
-        assert hook.check_for_wildcard_key('s3://{}//abc'.format(s3_bucket)) is True
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//a*') is True
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//abc') is True
 
         assert hook.check_for_wildcard_key('a', s3_bucket) is False
         assert hook.check_for_wildcard_key('b', s3_bucket) is False
-        assert hook.check_for_wildcard_key('s3://{}//a'.format(s3_bucket)) is False
-        assert hook.check_for_wildcard_key('s3://{}//b'.format(s3_bucket)) is False
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//a') is False
+        assert hook.check_for_wildcard_key(f's3://{s3_bucket}//b') is False
 
     def test_get_wildcard_key(self, s3_bucket):
         hook = S3Hook()
@@ -216,20 +226,32 @@ class TestAwsS3Hook:
         assert hook.get_wildcard_key('a*', s3_bucket).key == 'a/b'
         assert hook.get_wildcard_key('a*', s3_bucket, delimiter='/').key == 'abc'
         assert hook.get_wildcard_key('abc', s3_bucket, delimiter='/').key == 'abc'
-        assert hook.get_wildcard_key('s3://{}/a*'.format(s3_bucket)).key == 'a/b'
-        assert hook.get_wildcard_key('s3://{}/a*'.format(s3_bucket), delimiter='/').key == 'abc'
-        assert hook.get_wildcard_key('s3://{}/abc'.format(s3_bucket), delimiter='/').key == 'abc'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/a*').key == 'a/b'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/a*', delimiter='/').key == 'abc'
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/abc', delimiter='/').key == 'abc'
 
         assert hook.get_wildcard_key('a', s3_bucket) is None
         assert hook.get_wildcard_key('b', s3_bucket) is None
-        assert hook.get_wildcard_key('s3://{}/a'.format(s3_bucket)) is None
-        assert hook.get_wildcard_key('s3://{}/b'.format(s3_bucket)) is None
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/a') is None
+        assert hook.get_wildcard_key(f's3://{s3_bucket}/b') is None
 
     def test_load_string(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
         resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
         assert resource.get()['Body'].read() == b'Cont\xC3\xA9nt'
+
+    def test_load_string_compress(self, s3_bucket):
+        hook = S3Hook()
+        hook.load_string("Contént", "my_key", s3_bucket, compression='gzip')
+        resource = boto3.resource('s3').Object(s3_bucket, 'my_key')  # pylint: disable=no-member
+        data = gz.decompress(resource.get()['Body'].read())
+        assert data == b'Cont\xC3\xA9nt'
+
+    def test_load_string_compress_exception(self, s3_bucket):
+        hook = S3Hook()
+        with pytest.raises(NotImplementedError):
+            hook.load_string("Contént", "my_key", s3_bucket, compression='bad-compression')
 
     def test_load_string_acl(self, s3_bucket):
         hook = S3Hook()
@@ -324,10 +346,9 @@ class TestAwsS3Hook:
     def test_delete_bucket_if_not_bucket_exist(self, s3_bucket):
         # assert if exception is raised if bucket not present
         mock_hook = S3Hook()
-        with pytest.raises(ClientError) as error:
-            # assert error
+        with pytest.raises(ClientError) as ctx:
             assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
-        assert error.value.response['Error']['Code'] == 'NoSuchBucket'
+        assert ctx.value.response['Error']['Code'] == 'NoSuchBucket'
 
     @mock.patch.object(S3Hook, 'get_connection', return_value=Connection(schema='test_bucket'))
     def test_provide_bucket_name(self, mock_get_connection):
@@ -346,11 +367,11 @@ class TestAwsS3Hook:
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         hook = S3Hook()
-        with pytest.raises(AirflowException) as err:
+        with pytest.raises(AirflowException) as ctx:
             hook.delete_objects(bucket=s3_bucket, keys=['key-1'])
 
-        assert isinstance(err.value, AirflowException)
-        assert str(err.value) == "Errors when deleting: ['key-1']"
+        assert isinstance(ctx.value, AirflowException)
+        assert str(ctx.value) == "Errors when deleting: ['key-1']"
 
     def test_delete_objects_one_key(self, mocked_s3_res, s3_bucket):
         key = 'key-1'
@@ -363,7 +384,7 @@ class TestAwsS3Hook:
         num_keys_to_remove = 1001
         keys = []
         for index in range(num_keys_to_remove):
-            key = 'key-{}'.format(index)
+            key = f'key-{index}'
             mocked_s3_res.Object(s3_bucket, key).put(Body=b'Data')
             keys.append(key)
 
@@ -394,9 +415,9 @@ class TestAwsS3Hook:
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key('s3://foo/bar.csv')
         assert ('foo', 'bar.csv') == test_bucket_name_with_key
 
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError) as ctx:
             fake_s3_hook.test_function_with_test_key('s3://foo/bar.csv')
-        assert isinstance(err.value, ValueError)
+        assert isinstance(ctx.value, ValueError)
 
     @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
     def test_download_file(self, mock_temp_file):

@@ -23,19 +23,19 @@ from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesR
 from airflow.utils import dates
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project-id")
-BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-bucket")
+BUCKET = os.environ.get("GCP_GCS_LIFE_SCIENCES_BUCKET", "example-life-sciences-bucket")
 FILENAME = os.environ.get("GCP_GCS_LIFE_SCIENCES_FILENAME", 'input.in')
 LOCATION = os.environ.get("GCP_LIFE_SCIENCES_LOCATION", 'us-central1')
 
 
 # [START howto_configure_simple_action_pipeline]
-SIMPLE_ACTION_PIEPELINE = {
+SIMPLE_ACTION_PIPELINE = {
     "pipeline": {
         "actions": [
             {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
         ],
         "resources": {
-            "regions": ["{}".format(LOCATION)],
+            "regions": [f"{LOCATION}"],
             "virtualMachine": {
                 "machineType": "n1-standard-1",
             },
@@ -50,7 +50,7 @@ MULTI_ACTION_PIPELINE = {
         "actions": [
             {
                 "imageUri": "google/cloud-sdk",
-                "commands": ["gsutil", "cp", "gs://{}/{}".format(BUCKET, FILENAME), "/tmp"],
+                "commands": ["gsutil", "cp", f"gs://{BUCKET}/{FILENAME}", "/tmp"],
             },
             {"imageUri": "bash", "commands": ["-c", "echo Hello, world"]},
             {
@@ -58,13 +58,13 @@ MULTI_ACTION_PIPELINE = {
                 "commands": [
                     "gsutil",
                     "cp",
-                    "gs://{}/{}".format(BUCKET, FILENAME),
-                    "gs://{}/output.in".format(BUCKET),
+                    f"gs://{BUCKET}/{FILENAME}",
+                    f"gs://{BUCKET}/output.in",
                 ],
             },
         ],
         "resources": {
-            "regions": ["{}".format(LOCATION)],
+            "regions": [f"{LOCATION}"],
             "virtualMachine": {
                 "machineType": "n1-standard-1",
             },
@@ -83,7 +83,7 @@ with models.DAG(
     # [START howto_run_pipeline]
     simple_life_science_action_pipeline = LifeSciencesRunPipelineOperator(
         task_id='simple-action-pipeline',
-        body=SIMPLE_ACTION_PIEPELINE,
+        body=SIMPLE_ACTION_PIPELINE,
         project_id=PROJECT_ID,
         location=LOCATION,
     )

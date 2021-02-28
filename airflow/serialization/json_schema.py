@@ -55,7 +55,7 @@ def load_dag_schema_dict() -> dict:
     schema_file = pkgutil.get_data(__name__, schema_file_name)
 
     if schema_file is None:
-        raise AirflowException("Schema file {} does not exists".format(schema_file_name))
+        raise AirflowException(f"Schema file {schema_file_name} does not exists")
 
     schema = json.loads(schema_file.decode())
     return schema
@@ -64,5 +64,4 @@ def load_dag_schema_dict() -> dict:
 def load_dag_schema() -> Validator:
     """Load & Validate Json Schema for DAG"""
     schema = load_dag_schema_dict()
-    jsonschema.Draft7Validator.check_schema(schema)
     return jsonschema.Draft7Validator(schema)

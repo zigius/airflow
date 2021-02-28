@@ -23,18 +23,24 @@ import warnings
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 
 from airflow.exceptions import (
-    AirflowException, AirflowFileParseException, ConnectionNotUnique, FileSyntaxError,
+    AirflowException,
+    AirflowFileParseException,
+    ConnectionNotUnique,
+    FileSyntaxError,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils.file import COMMENT_PATTERN
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 def get_connection_parameter_names() -> Set[str]:
@@ -82,7 +88,12 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
 
         key, value = var_parts
         if not key:
-            errors.append(FileSyntaxError(line_no=line_no, message="Invalid line format. Key is empty.",))
+            errors.append(
+                FileSyntaxError(
+                    line_no=line_no,
+                    message="Invalid line format. Key is empty.",
+                )
+            )
         secrets[key].append(value)
     return secrets, errors
 
@@ -159,7 +170,9 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
     ext = file_path.rsplit(".", 2)[-1].lower()
 
     if ext not in FILE_PARSERS:
-        raise AirflowException("Unsupported file format. The file must have the extension .env or .json")
+        raise AirflowException(
+            "Unsupported file format. The file must have the extension .env or .json or .yaml"
+        )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
 
@@ -215,7 +228,7 @@ def load_variables(file_path: str) -> Dict[str, str]:
     """
     Load variables from a text file.
 
-    Both ``JSON`` and ``.env`` files are supported.
+    ``JSON``, `YAML` and ``.env`` files are supported.
 
     :param file_path: The location of the file that will be processed.
     :type file_path: str
@@ -236,7 +249,8 @@ def load_connections(file_path) -> Dict[str, List[Any]]:
     """This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.","""
     warnings.warn(
         "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
-        DeprecationWarning, stacklevel=2
+        DeprecationWarning,
+        stacklevel=2,
     )
     return {k: [v] for k, v in load_connections_dict(file_path).values()}
 
@@ -245,9 +259,9 @@ def load_connections_dict(file_path: str) -> Dict[str, Any]:
     """
     Load connection from text file.
 
-    Both ``JSON`` and ``.env`` files are supported.
+    ``JSON``, `YAML` and ``.env`` files are supported.
 
-    :return: A dictionary where the key contains a connection ID and the value contains a list of connections.
+    :return: A dictionary where the key contains a connection ID and the value contains the connection.
     :rtype: Dict[str, airflow.models.connection.Connection]
     """
     log.debug("Loading connection")
@@ -274,7 +288,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection objects and Variables from local files
 
-    Both ``JSON`` and ``.env`` files are supported.
+    ``JSON``, `YAML` and ``.env`` files are supported.
 
     :param variables_file_path: File location with variables data.
     :type variables_file_path: str
@@ -299,16 +313,28 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
         return secrets
 
     @property
-    def _local_connections(self) -> Dict[str, List[Any]]:
+    def _local_connections(self) -> Dict[str, 'Connection']:
         if not self.connections_file:
             self.log.debug("The file for connection is not specified. Skipping")
             # The user may not specify any file.
             return {}
         return load_connections_dict(self.connections_file)
 
-    def get_connections(self, conn_id: str) -> List[Any]:
+    def get_connection(self, conn_id: str) -> Optional['Connection']:
         if conn_id in self._local_connections:
-            return [self._local_connections[conn_id]]
+            return self._local_connections[conn_id]
+        return None
+
+    def get_connections(self, conn_id: str) -> List[Any]:
+        warnings.warn(
+            "This method is deprecated. Please use "
+            "`airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection`.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        conn = self.get_connection(conn_id=conn_id)
+        if conn:
+            return [conn]
         return []
 
     def get_variable(self, key: str) -> Optional[str]:

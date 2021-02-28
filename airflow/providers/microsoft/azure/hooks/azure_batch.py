@@ -21,10 +21,10 @@ from datetime import timedelta
 from typing import Optional, Set
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
-from azure.batch.models import PoolAddParameter, JobAddParameter, TaskAddParameter
+from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.utils import timezone
 
@@ -37,7 +37,12 @@ class AzureBatchHook(BaseHook):
     The account url should be in extra parameter as account_url
     """
 
-    def __init__(self, azure_batch_conn_id: str = 'azure_batch_default') -> None:
+    conn_name_attr = 'azure_batch_conn_id'
+    default_conn_name = 'azure_batch_default'
+    conn_type = 'azure_batch'
+    hook_name = 'Azure Batch Service'
+
+    def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
         self.connection = self.get_conn()
@@ -60,9 +65,7 @@ class AzureBatchHook(BaseHook):
             """Extract required parameter from extra JSON, raise exception if not found"""
             value = conn.extra_dejson.get(name)
             if not value:
-                raise AirflowException(
-                    'Extra connection option is missing required parameter: `{}`'.format(name)
-                )
+                raise AirflowException(f'Extra connection option is missing required parameter: `{name}`')
             return value
 
         batch_account_url = _get_required_param('account_url')
@@ -150,7 +153,7 @@ class AzureBatchHook(BaseHook):
 
         elif os_family:
             self.log.info(
-                'Using cloud service configuration to create pool, ' 'virtual machine configuration ignored'
+                'Using cloud service configuration to create pool, virtual machine configuration ignored'
             )
             pool = batch_models.PoolAddParameter(
                 id=pool_id,
@@ -249,7 +252,7 @@ class AzureBatchHook(BaseHook):
             pool = self.connection.pool.get(pool_id)
             if pool.resize_errors is not None:
                 resize_errors = "\n".join([repr(e) for e in pool.resize_errors])
-                raise RuntimeError('resize error encountered for pool {}:\n{}'.format(pool.id, resize_errors))
+                raise RuntimeError(f'resize error encountered for pool {pool.id}:\n{resize_errors}')
             nodes = list(self.connection.compute_node.list(pool.id))
             if len(nodes) >= pool.target_dedicated_nodes and all(node.state in node_state for node in nodes):
                 return nodes

@@ -36,17 +36,19 @@ from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils import timezone
 from airflow.utils.callback_requests import TaskCallbackRequest
 from airflow.utils.dag_processing import (
-    DagFileProcessorAgent, DagFileProcessorManager, DagFileStat, DagParsingSignal, DagParsingStat,
+    DagFileProcessorAgent,
+    DagFileProcessorManager,
+    DagFileStat,
+    DagParsingSignal,
+    DagParsingStat,
 )
-from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-TEST_DAG_FOLDER = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
+TEST_DAG_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'dags')
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -132,11 +134,51 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 signal_conn=child_pipe,
                 dag_ids=[],
                 pickle_dags=False,
-                async_mode=async_mode)
+                async_mode=async_mode,
+            )
 
             self.run_processor_manager_one_loop(manager, parent_pipe)
         child_pipe.close()
         parent_pipe.close()
+
+    @pytest.mark.backend("mysql", "postgres")
+    def test_start_new_processes_with_same_filepath(self):
+        """
+        Test that when a processor already exist with a filepath, a new processor won't be created
+        with that filepath. The filepath will just be removed from the list.
+        """
+        processor_factory_mock = MagicMock()
+        manager = DagFileProcessorManager(
+            dag_directory='directory',
+            max_runs=1,
+            processor_factory=processor_factory_mock,
+            processor_timeout=timedelta.max,
+            signal_conn=MagicMock(),
+            dag_ids=[],
+            pickle_dags=False,
+            async_mode=True,
+        )
+
+        file_1 = 'file_1.py'
+        file_2 = 'file_2.py'
+        file_3 = 'file_3.py'
+        manager._file_path_queue = [file_1, file_2, file_3]
+
+        # Mock that only one processor exists. This processor runs with 'file_1'
+        manager._processors[file_1] = MagicMock()
+        # Start New Processes
+        manager.start_new_processes()
+
+        # Because of the config: '[scheduler] parsing_processes = 2'
+        # verify that only one extra process is created
+        # and since a processor with 'file_1' already exists,
+        # even though it is first in '_file_path_queue'
+        # a new processor is created with 'file_2' and not 'file_1'.
+        processor_factory_mock.assert_called_once_with('file_2.py', [], [], False)
+
+        assert file_1 in manager._processors.keys()
+        assert file_2 in manager._processors.keys()
+        assert [file_3] == manager._file_path_queue
 
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -147,18 +189,18 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         mock_processor = MagicMock()
-        mock_processor.stop.side_effect = AttributeError(
-            'DagFileProcessor object has no attribute stop')
+        mock_processor.stop.side_effect = AttributeError('DagFileProcessor object has no attribute stop')
         mock_processor.terminate.side_effect = None
 
         manager._processors['missing_file.txt'] = mock_processor
         manager._file_stats['missing_file.txt'] = DagFileStat(0, 0, None, None, 0)
 
         manager.set_file_paths(['abc.txt'])
-        self.assertDictEqual(manager._processors, {})
+        assert manager._processors == {}
 
     def test_set_file_paths_when_processor_file_path_is_in_new_file_paths(self):
         manager = DagFileProcessorManager(
@@ -169,17 +211,17 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         mock_processor = MagicMock()
-        mock_processor.stop.side_effect = AttributeError(
-            'DagFileProcessor object has no attribute stop')
+        mock_processor.stop.side_effect = AttributeError('DagFileProcessor object has no attribute stop')
         mock_processor.terminate.side_effect = None
 
         manager._processors['abc.txt'] = mock_processor
 
         manager.set_file_paths(['abc.txt'])
-        self.assertDictEqual(manager._processors, {'abc.txt': mock_processor})
+        assert manager._processors == {'abc.txt': mock_processor}
 
     def test_find_zombies(self):
         manager = DagFileProcessorManager(
@@ -190,7 +232,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
@@ -211,17 +254,18 @@ class TestDagFileProcessorManager(unittest.TestCase):
             session.commit()
 
             manager._last_zombie_query_time = timezone.utcnow() - timedelta(
-                seconds=manager._zombie_threshold_secs + 1)
+                seconds=manager._zombie_threshold_secs + 1
+            )
             manager._find_zombies()  # pylint: disable=no-value-for-parameter
             requests = manager._callback_to_execute[dag.full_filepath]
-            self.assertEqual(1, len(requests))
-            self.assertEqual(requests[0].full_filepath, dag.full_filepath)
-            self.assertEqual(requests[0].msg, "Detected as zombie")
-            self.assertEqual(requests[0].is_failure_callback, True)
-            self.assertIsInstance(requests[0].simple_task_instance, SimpleTaskInstance)
-            self.assertEqual(ti.dag_id, requests[0].simple_task_instance.dag_id)
-            self.assertEqual(ti.task_id, requests[0].simple_task_instance.task_id)
-            self.assertEqual(ti.execution_date, requests[0].simple_task_instance.execution_date)
+            assert 1 == len(requests)
+            assert requests[0].full_filepath == dag.full_filepath
+            assert requests[0].msg == "Detected as zombie"
+            assert requests[0].is_failure_callback is True
+            assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
+            assert ti.dag_id == requests[0].simple_task_instance.dag_id
+            assert ti.task_id == requests[0].simple_task_instance.task_id
+            assert ti.execution_date == requests[0].simple_task_instance.execution_date
 
             session.query(TI).delete()
             session.query(LJ).delete()
@@ -232,8 +276,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
         file processors until the next zombie detection logic is invoked.
         """
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_example_bash_operator.py')
-        with conf_vars({('scheduler', 'max_threads'): '1',
-                        ('core', 'load_examples'): 'False'}):
+        with conf_vars({('scheduler', 'parsing_processes'): '1', ('core', 'load_examples'): 'False'}):
             dagbag = DagBag(test_dag_path, read_dags_from_db=False)
             with create_session() as session:
                 session.query(LJ).delete()
@@ -257,7 +300,7 @@ class TestDagFileProcessorManager(unittest.TestCase):
                     TaskCallbackRequest(
                         full_filepath=dag.full_filepath,
                         simple_task_instance=SimpleTaskInstance(ti),
-                        msg="Message"
+                        msg="Message",
                     )
                 ]
 
@@ -282,7 +325,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
                 signal_conn=child_pipe,
                 dag_ids=[],
                 pickle_dags=False,
-                async_mode=async_mode)
+                async_mode=async_mode,
+            )
 
             self.run_processor_manager_one_loop(manager, parent_pipe)
 
@@ -296,10 +340,9 @@ class TestDagFileProcessorManager(unittest.TestCase):
 
             assert fake_processors[-1]._file_path == test_dag_path
             callback_requests = fake_processors[-1]._callback_requests
-            assert (
-                {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} ==
-                {result.simple_task_instance.key for result in callback_requests}
-            )
+            assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
+                result.simple_task_instance.key for result in callback_requests
+            }
 
             child_pipe.close()
             parent_pipe.close()
@@ -316,7 +359,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
         processor._start_time = timezone.make_aware(datetime.min)
@@ -336,7 +380,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             signal_conn=MagicMock(),
             dag_ids=[],
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         processor = DagFileProcessorProcess('abc.txt', False, [], [])
         processor._start_time = timezone.make_aware(datetime.max)
@@ -373,7 +418,8 @@ class TestDagFileProcessorManager(unittest.TestCase):
             processor_timeout=timedelta(seconds=5),
             signal_conn=child_pipe,
             pickle_dags=False,
-            async_mode=True)
+            async_mode=True,
+        )
 
         manager._run_parsing_loop()
 
@@ -407,10 +453,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
     @staticmethod
     def _processor_factory(file_path, zombies, dag_ids, pickle_dags):
-        return DagFileProcessorProcess(file_path,
-                                       pickle_dags,
-                                       dag_ids,
-                                       zombies)
+        return DagFileProcessorProcess(file_path, pickle_dags, dag_ids, zombies)
 
     def test_reload_module(self):
         """
@@ -431,13 +474,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
                 pass
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
-            processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                    0,
-                                                    type(self)._processor_factory,
-                                                    timedelta.max,
-                                                    [],
-                                                    False,
-                                                    async_mode)
+            processor_agent = DagFileProcessorAgent(
+                test_dag_path, 0, type(self)._processor_factory, timedelta.max, [], False, async_mode
+            )
             processor_agent.start()
             if not async_mode:
                 processor_agent.run_single_parsing_loop()
@@ -446,7 +485,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # Since we are reloading logging config not creating this file,
             # we should expect it to be nonexistent.
 
-            self.assertFalse(os.path.isfile(log_file_loc))
+            assert not os.path.isfile(log_file_loc)
 
     @conf_vars({('core', 'load_examples'): 'False'})
     def test_parse_once(self):
@@ -455,13 +494,9 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
         test_dag_path = os.path.join(TEST_DAG_FOLDER, 'test_scheduler_dags.py')
         async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
-        processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                1,
-                                                type(self)._processor_factory,
-                                                timedelta.max,
-                                                [],
-                                                False,
-                                                async_mode)
+        processor_agent = DagFileProcessorAgent(
+            test_dag_path, 1, type(self)._processor_factory, timedelta.max, [], False, async_mode
+        )
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()
@@ -491,76 +526,13 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             pass
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path,
-                                                0,
-                                                type(self)._processor_factory,
-                                                timedelta.max,
-                                                [],
-                                                False,
-                                                async_mode)
+        processor_agent = DagFileProcessorAgent(
+            test_dag_path, 0, type(self)._processor_factory, timedelta.max, [], False, async_mode
+        )
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()
 
         processor_agent._process.join()
 
-        self.assertTrue(os.path.isfile(log_file_loc))
-
-
-class TestCorrectMaybeZipped(unittest.TestCase):
-    @mock.patch("zipfile.is_zipfile")
-    def test_correct_maybe_zipped_normal_file(self, mocked_is_zipfile):
-        path = '/path/to/some/file.txt'
-        mocked_is_zipfile.return_value = False
-
-        dag_folder = correct_maybe_zipped(path)
-
-        self.assertEqual(dag_folder, path)
-
-    @mock.patch("zipfile.is_zipfile")
-    def test_correct_maybe_zipped_normal_file_with_zip_in_name(self, mocked_is_zipfile):
-        path = '/path/to/fakearchive.zip.other/file.txt'
-        mocked_is_zipfile.return_value = False
-
-        dag_folder = correct_maybe_zipped(path)
-
-        self.assertEqual(dag_folder, path)
-
-    @mock.patch("zipfile.is_zipfile")
-    def test_correct_maybe_zipped_archive(self, mocked_is_zipfile):
-        path = '/path/to/archive.zip/deep/path/to/file.txt'
-        mocked_is_zipfile.return_value = True
-
-        dag_folder = correct_maybe_zipped(path)
-
-        assert mocked_is_zipfile.call_count == 1
-        (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        self.assertEqual('/path/to/archive.zip', args[0])
-
-        self.assertEqual(dag_folder, '/path/to/archive.zip')
-
-
-class TestOpenMaybeZipped(unittest.TestCase):
-    def test_open_maybe_zipped_normal_file(self):
-        with mock.patch('builtins.open', mock.mock_open(read_data="data")) as mock_file:
-            open_maybe_zipped('/path/to/some/file.txt')
-            mock_file.assert_called_once_with('/path/to/some/file.txt', mode='r')
-
-    def test_open_maybe_zipped_normal_file_with_zip_in_name(self):
-        path = '/path/to/fakearchive.zip.other/file.txt'
-        with mock.patch('builtins.open', mock.mock_open(read_data="data")) as mock_file:
-            open_maybe_zipped(path)
-            mock_file.assert_called_once_with(path, mode='r')
-
-    @mock.patch("zipfile.is_zipfile")
-    @mock.patch("zipfile.ZipFile")
-    def test_open_maybe_zipped_archive(self, mocked_zip_file, mocked_is_zipfile):
-        mocked_is_zipfile.return_value = True
-        instance = mocked_zip_file.return_value
-        instance.open.return_value = mock.mock_open(read_data="data")
-
-        open_maybe_zipped('/path/to/archive.zip/deep/path/to/file.txt')
-
-        mocked_is_zipfile.assert_called_once_with('/path/to/archive.zip')
-        mocked_zip_file.assert_called_once_with('/path/to/archive.zip', mode='r')
-        instance.open.assert_called_once_with('deep/path/to/file.txt')
+        assert os.path.isfile(log_file_loc)

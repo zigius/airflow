@@ -21,8 +21,9 @@ Tests for Google Cloud Build Hook
 import unittest
 from typing import Optional
 from unittest import mock
-
 from unittest.mock import PropertyMock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
@@ -64,8 +65,8 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
         mock_build.assert_called_once_with(
             'cloudbuild', 'v1', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_build_immediately_complete(self, get_conn_mock):
@@ -87,7 +88,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
             body={}, projectId=TEST_PROJECT_ID
         )
 
-        self.assertEqual(result, TEST_BUILD)
+        assert result == TEST_BUILD
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.time.sleep")
@@ -109,7 +110,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
 
         result = self.hook.create_build(body={}, project_id=TEST_PROJECT_ID)
 
-        self.assertEqual(result, TEST_BUILD)
+        assert result == TEST_BUILD
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -127,7 +128,7 @@ class TestCloudBuildHookWithPassedProjectId(unittest.TestCase):
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
         service_mock.operations.return_value.get.return_value.execute = execute_mock
-        with self.assertRaisesRegex(AirflowException, "error"):
+        with pytest.raises(AirflowException, match="error"):
             self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
 
@@ -148,8 +149,8 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
         mock_build.assert_called_once_with(
             'cloudbuild', 'v1', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -176,7 +177,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
             body={}, projectId='example-project'
         )
 
-        self.assertEqual(result, TEST_BUILD)
+        assert result == TEST_BUILD
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -203,7 +204,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
         result = self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
-        self.assertEqual(result, TEST_BUILD)
+        assert result == TEST_BUILD
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -221,7 +222,7 @@ class TestGcpComputeHookWithDefaultProjectIdFromConnection(unittest.TestCase):
 
         execute_mock = mock.Mock(**{"side_effect": [TEST_WAITING_OPERATION, TEST_ERROR_OPERATION]})
         service_mock.operations.return_value.get.return_value.execute = execute_mock
-        with self.assertRaisesRegex(AirflowException, "error"):
+        with pytest.raises(AirflowException, match="error"):
             self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
 
@@ -242,8 +243,8 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
         mock_build.assert_called_once_with(
             'cloudbuild', 'v1', http=mock_authorize.return_value, cache_discovery=False
         )
-        self.assertEqual(mock_build.return_value, result)
-        self.assertEqual(self.hook._conn, result)
+        assert mock_build.return_value == result
+        assert self.hook._conn == result
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -252,11 +253,10 @@ class TestCloudBuildHookWithoutProjectId(unittest.TestCase):
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build(self, mock_get_conn, mock_project_id):
-        with self.assertRaises(AirflowException) as e:
+        with pytest.raises(AirflowException) as ctx:
             self.hook.create_build(body={})  # pylint: disable=no-value-for-parameter
 
-        self.assertEqual(
+        assert (
             "The project id must be passed either as keyword project_id parameter or as project_id extra in "
-            "Google Cloud connection definition. Both are not set!",
-            str(e.exception),
+            "Google Cloud connection definition. Both are not set!" == str(ctx.value)
         )

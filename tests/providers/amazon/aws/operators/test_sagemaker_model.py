@@ -17,8 +17,9 @@
 # under the License.
 
 import unittest
-
 from unittest import mock
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
@@ -32,7 +33,7 @@ model_name = 'test-model-name'
 
 image = 'test-image'
 
-output_url = 's3://{}/test/output'.format(bucket)
+output_url = f's3://{bucket}/test/output'
 create_model_params = {
     'ModelName': model_name,
     'PrimaryContainer': {
@@ -60,4 +61,5 @@ class TestSageMakerModelOperator(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'create_model')
     def test_execute_with_failure(self, mock_model, mock_client):
         mock_model.return_value = {'ModelArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
-        self.assertRaises(AirflowException, self.sagemaker.execute, None)
+        with pytest.raises(AirflowException):
+            self.sagemaker.execute(None)
